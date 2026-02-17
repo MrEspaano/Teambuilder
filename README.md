@@ -1,25 +1,27 @@
-# Lagbyggare (React + TypeScript + Vite)
+# Lagbyggare (React + TypeScript + Vite + Vercel Postgres)
 
-En webapp för idrottslärare där du kan:
+En webapp för idrottslärare där varje användare skapar eget konto (e-post + lösenord) och får sina egna klasser i molnet.
+
+## Funktioner
+
 - skapa klasser
 - lägga in och redigera elevlistor
 - sätta nivå (1-3) och kön (tjej/kille/okänd) per elev
 - lägga till blockeringspar (elever som inte får vara i samma lag)
 - generera slumpade och jämnt fördelade lag
 - kopiera/exportera resultat
-- skapa konto och logga in med e-post/lösenord så varje användare får sina egna sparade klasser
-
-All data sparas lokalt i webbläsaren via `localStorage` när Supabase inte är konfigurerat.
-När Supabase är konfigurerat används konto-inloggning och data sparas per användare i databasen.
+- konto per användare med data synkad mellan enheter
 
 ## Teknik
 
 - React 18
 - TypeScript (strict mode)
 - Vite
-- CSS (ingen extern UI-ram)
+- Vercel Serverless Functions (`/api/*`)
+- Vercel Postgres
+- JWT-auth (egen implementation)
 
-## Kom igång lokalt
+## Lokal utveckling
 
 Krav: Node.js 18+ och npm.
 
@@ -28,85 +30,47 @@ npm install
 npm run dev
 ```
 
-Öppna adressen som Vite skriver ut, vanligtvis `http://localhost:5173`.
+Obs: `npm run dev` startar bara frontend (Vite).
+För att testa API + auth lokalt, använd `vercel dev` med rätt miljövariabler.
 
-## Konton och inloggning (Supabase)
+## Vercel setup (utan Supabase)
 
-För att flera kollegor ska kunna använda appen med egna data:
+### 1. Koppla Vercel Postgres
 
-1. Skapa ett Supabase-projekt.
-2. Kör SQL från `supabase-schema.sql` i Supabase SQL Editor.
-3. Skapa `.env` i projektet med:
+I Vercel-projektet:
 
-```bash
-VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-```
+- gå till `Storage`
+- skapa/koppla en `Postgres`-databas
+- koppla databasen till projektet
 
-4. I Supabase: `Authentication -> Providers -> Email`
-   - **Enable email signups**: på
-   - stäng av **Confirm email**.
+Detta skapar automatiskt Postgres-miljövariabler i projektet.
 
-När **Confirm email** är av stängd räcker det att ange e-post + lösenord för att konto ska skapas direkt utan verifieringsmail.
+### 2. Lägg till JWT-hemlighet
 
-### Vercel-inställningar för konton
+I `Project -> Settings -> Environment Variables`:
 
-I Vercel-projektet måste samma variabler finnas under **Settings -> Environment Variables**:
+- `AUTH_JWT_SECRET` = lång slumpad sträng (minst 32 tecken)
 
-```bash
-VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-```
+Lägg den för `Production`, `Preview`, `Development`.
 
-Lägg dem för **Production**, **Preview** och **Development** och kör sedan en ny deploy.
-Om dessa saknas kör appen enbart lokal lagring och visar inte inloggningspanelen.
+### 3. Deploya om
 
-## Bygg för produktion
+Kör `Redeploy` i Vercel efter att variabler är satta.
 
-```bash
-npm run build
-```
+## Databasschema
 
-Byggfiler hamnar i `dist/`.
-
-## Förhandsvisa produktionsbuild
-
-```bash
-npm run preview
-```
-
-## Deploy till GitHub Pages (rekommenderat)
-
-Projektet innehåller en färdig GitHub Actions-workflow:
-
-- `.github/workflows/deploy.yml`
-
-Så här publicerar du:
-
-1. Pusha projektet till GitHub (branch `main` eller `master`).
-2. Gå till repo: **Settings → Pages**.
-3. Under **Build and deployment**, välj **Source: GitHub Actions**.
-4. Workflowen körs automatiskt vid push och publicerar `dist/` till GitHub Pages.
-
-Notera:
-- Workflowen sätter rätt `base`-path automatiskt vid build, så appen fungerar både på projekt-sidor (`/repo-namn/`) och root-sidor.
+Appen försöker skapa tabeller automatiskt vid första API-anrop.
+Du kan också köra SQL manuellt från `postgres-schema.sql`.
 
 ## Deploy till Vercel
 
-1. Skapa ett Git-repo och pusha projektet.
+1. Pusha till GitHub.
 2. Importera repot i Vercel.
-3. Framework preset: **Vite**.
-4. Build command: `npm run build`
-5. Output directory: `dist`
-6. Deploy.
-
-## Deploy till Netlify
-
-1. Skapa ett Git-repo och pusha projektet.
-2. Importera repot i Netlify.
-3. Build command: `npm run build`
-4. Publish directory: `dist`
-5. Deploy.
+3. Framework preset: `Vite`.
+4. Build command: `npm run build`.
+5. Output directory: `dist`.
+6. Lägg till `AUTH_JWT_SECRET` och Postgres integration.
+7. Redeploy.
 
 ## Datamodell
 
@@ -122,21 +86,3 @@ type Class = {
   blocks: Array<{ a: string; b: string }>;
 };
 ```
-
-Persistenslagret har versionsfält (`version`) för att kunna migrera senare.
-
-## Algoritm för laggenerering
-
-- Upp till 2000 försök per generering
-- Varje försök:
-  - slumpa elevordning
-  - placera elever i lag med jämn målstorlek
-  - balansera nivåsumma mellan lag
-  - balansera könsfördelning mellan lag
-  - kontrollera blockeringar under placering
-- Vid lyckat försök returneras lag
-- Om inget försök lyckas: tydligt fel + föreslagen åtgärd
-
-## Kända begränsningar / TODO
-
-- Valfri “Lås slump-seed” är inte implementerad ännu.

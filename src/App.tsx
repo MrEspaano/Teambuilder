@@ -5,26 +5,24 @@ import ClassSelector from "./components/ClassSelector";
 import StudentEditor from "./components/StudentEditor";
 import TeamGenerator from "./components/TeamGenerator";
 import type { AppData, BlockRule, Student } from "./types";
-import { isSupabaseConfigured } from "./lib/supabase";
 import {
   clearStoredSession,
   fetchCurrentUser,
   loginWithEmail,
   loadStoredSession,
   logoutSession,
-  refreshSession,
   saveStoredSession,
   signupWithEmail
 } from "./utils/authApi";
-import { normalizeName } from "./utils/normalize";
 import type { AuthSession } from "./utils/authApi";
 import { isCloudAuthError, loadUserAppData, saveUserAppData } from "./utils/cloudStorage";
-import { createClassRoom, createEmptyData, loadAppData, saveAppData } from "./utils/storage";
+import { normalizeName } from "./utils/normalize";
+import { createClassRoom, createEmptyData } from "./utils/storage";
 
 const App = () => {
   const [data, setData] = useState<AppData>(createEmptyData());
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(isSupabaseConfigured);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
   const [isDataReady, setIsDataReady] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -34,23 +32,13 @@ const App = () => {
     let isMounted = true;
 
     const bootstrapAuth = async () => {
-      if (!isSupabaseConfigured) {
-        if (!isMounted) {
-          return;
-        }
-
-        setData(loadAppData());
-        setIsDataReady(true);
-        setIsAuthLoading(false);
-        return;
-      }
-
       const stored = loadStoredSession();
       if (!stored) {
         if (!isMounted) {
           return;
         }
 
+        setAuthSession(null);
         setIsAuthLoading(false);
         setIsDataReady(true);
         return;
@@ -58,28 +46,20 @@ const App = () => {
 
       try {
         const currentUser = await fetchCurrentUser(stored.accessToken);
-        if (currentUser && currentUser.id === stored.userId) {
-          if (!isMounted) {
-            return;
-          }
-
-          const nextSession: AuthSession = {
-            ...stored,
-            email: currentUser.email
-          };
-          setAuthSession(nextSession);
-          saveStoredSession(nextSession);
-          setErrorMessage(null);
-          return;
+        if (!currentUser || currentUser.id !== stored.userId) {
+          throw new Error("Ogiltig session.");
         }
 
-        const refreshed = await refreshSession(stored.refreshToken);
         if (!isMounted) {
           return;
         }
 
-        setAuthSession(refreshed);
-        saveStoredSession(refreshed);
+        const nextSession: AuthSession = {
+          ...stored,
+          email: currentUser.email
+        };
+        setAuthSession(nextSession);
+        saveStoredSession(nextSession);
         setErrorMessage(null);
       } catch {
         if (!isMounted) {
@@ -88,7 +68,6 @@ const App = () => {
 
         clearStoredSession();
         setAuthSession(null);
-        setIsDataReady(true);
       } finally {
         if (isMounted) {
           setIsAuthLoading(false);
@@ -104,7 +83,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
+    if (isAuthLoading) {
       return;
     }
 
@@ -119,7 +98,7 @@ const App = () => {
 
       try {
         setIsDataReady(false);
-        const userData = await loadUserAppData(authSession.userId, authSession.accessToken);
+        const userData = await loadUserAppData(authSession.accessToken);
         if (!isMounted) {
           return;
         }
@@ -132,28 +111,12 @@ const App = () => {
         }
 
         if (isCloudAuthError(error)) {
-          try {
-            const refreshed = await refreshSession(authSession.refreshToken);
-            if (!isMounted) {
-              return;
-            }
-
-            setAuthSession(refreshed);
-            saveStoredSession(refreshed);
-            setErrorMessage(null);
-            return;
-          } catch {
-            if (!isMounted) {
-              return;
-            }
-
-            clearStoredSession();
-            setAuthSession(null);
-            setData(createEmptyData());
-            setInfoMessage("Sessionen gick ut. Logga in igen.");
-            setErrorMessage(null);
-            return;
-          }
+          clearStoredSession();
+          setAuthSession(null);
+          setData(createEmptyData());
+          setInfoMessage("Sessionen gick ut. Logga in igen.");
+          setErrorMessage(null);
+          return;
         }
 
         setErrorMessage("Kunde inte läsa dina data från kontot.");
@@ -169,41 +132,26 @@ const App = () => {
     return () => {
       isMounted = false;
     };
-  }, [authSession?.accessToken, authSession?.refreshToken, authSession?.userId]);
+  }, [authSession, isAuthLoading]);
 
   useEffect(() => {
-    if (!isDataReady) {
+    if (!isDataReady || !authSession) {
       return;
     }
-
-    if (!isSupabaseConfigured || !authSession) {
-      saveAppData(data);
-      return;
-    }
-
-    const currentSession = authSession;
 
     const timeoutId = window.setTimeout(() => {
       void (async () => {
         try {
           setIsSaving(true);
-          await saveUserAppData(currentSession.userId, data, currentSession.accessToken);
+          await saveUserAppData(data, authSession.accessToken);
           setErrorMessage(null);
         } catch (error) {
           if (isCloudAuthError(error)) {
-            try {
-              const refreshed = await refreshSession(currentSession.refreshToken);
-              setAuthSession(refreshed);
-              saveStoredSession(refreshed);
-              setErrorMessage(null);
-              return;
-            } catch {
-              clearStoredSession();
-              setAuthSession(null);
-              setInfoMessage("Sessionen gick ut. Logga in igen.");
-              setErrorMessage(null);
-              return;
-            }
+            clearStoredSession();
+            setAuthSession(null);
+            setInfoMessage("Sessionen gick ut. Logga in igen.");
+            setErrorMessage(null);
+            return;
           }
 
           setErrorMessage("Kunde inte spara dina data i kontot.");
@@ -322,8 +270,6 @@ const App = () => {
       const session = await loginWithEmail(email, password);
       setAuthSession(session);
       saveStoredSession(session);
-      setErrorMessage(null);
-      setInfoMessage(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Inloggning misslyckades. Kontrollera e-post och lösenord.";
       setErrorMessage(message);
@@ -339,17 +285,8 @@ const App = () => {
 
     try {
       const session = await signupWithEmail(email, password);
-      if (!session) {
-        setInfoMessage(
-          "Kontot skapades men kunde inte logga in direkt. I Supabase behöver Confirm email vara avstängd för direkt inloggning."
-        );
-        return;
-      }
-
       setAuthSession(session);
       saveStoredSession(session);
-      setErrorMessage(null);
-      setInfoMessage(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Kunde inte skapa konto. Prova en annan e-post.";
       setErrorMessage(message);
@@ -371,7 +308,7 @@ const App = () => {
     clearStoredSession();
   };
 
-  if (isSupabaseConfigured && !authSession) {
+  if (!authSession) {
     return (
       <AuthPanel
         loading={isAuthLoading}
@@ -389,22 +326,13 @@ const App = () => {
         <h1>Lagbyggare för idrott</h1>
         <p>
           Skapa klasser, hantera elevlistor och generera slumpade lag med blockeringar.
-          {isSupabaseConfigured && authSession ? ` Inloggad som ${authSession.email}.` : " Lokal lagring aktiv."}
+          {` Inloggad som ${authSession.email}.`}
         </p>
-        {!isSupabaseConfigured && (
-          <p className="message">
-            Info: kontoinloggning är avstängd eftersom Supabase-variabler saknas. Lägg till
-            `VITE_SUPABASE_URL` och `VITE_SUPABASE_ANON_KEY` i Vercel Environment Variables och deploya om för att
-            aktivera konton.
-          </p>
-        )}
         <div className="button-row">
-          {isSupabaseConfigured && authSession && (
-            <button type="button" className="ghost" onClick={logout}>
-              Logga ut
-            </button>
-          )}
-          {isSupabaseConfigured && <span className="muted">{isSaving ? "Sparar i konto..." : "Synkat med konto"}</span>}
+          <button type="button" className="ghost" onClick={logout}>
+            Logga ut
+          </button>
+          <span className="muted">{isSaving ? "Sparar i konto..." : "Synkat med konto"}</span>
         </div>
       </header>
 
