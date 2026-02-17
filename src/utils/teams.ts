@@ -1,10 +1,18 @@
-import type { BlockRule, TeamGenerationResult } from "../types";
-import { dedupeNames, makePairKey, normalizeName } from "./normalize";
+import type { BlockRule, Student, TeamGenerationResult } from "../types";
+import { dedupeStudents, makePairKey, normalizeName } from "./normalize";
 
 interface BlockValidation {
   adjacency: Map<string, Set<string>>;
   invalidMissing: BlockRule[];
   invalidSelf: BlockRule[];
+}
+
+interface TeamState {
+  members: Student[];
+  keys: string[];
+  skillSum: number;
+  girls: number;
+  boys: number;
 }
 
 const fisherYatesShuffle = <T>(items: T[]): T[] => {
@@ -18,10 +26,10 @@ const fisherYatesShuffle = <T>(items: T[]): T[] => {
   return values;
 };
 
-const calculateTeamSizes = (studentCount: number, teamCount: number): number[] => {
-  const baseSize = Math.floor(studentCount / teamCount);
-  const remainder = studentCount % teamCount;
-  return Array.from({ length: teamCount }, (_, index) => (index < remainder ? baseSize + 1 : baseSize));
+const calculateDistribution = (count: number, buckets: number): number[] => {
+  const base = Math.floor(count / buckets);
+  const remainder = count % buckets;
+  return Array.from({ length: buckets }, (_, index) => (index < remainder ? base + 1 : base));
 };
 
 const buildBlockValidation = (studentKeys: Set<string>, blocks: BlockRule[]): BlockValidation => {
@@ -65,13 +73,13 @@ const buildBlockValidation = (studentKeys: Set<string>, blocks: BlockRule[]): Bl
   return { adjacency, invalidMissing, invalidSelf };
 };
 
-const hasBlockConflict = (studentKey: string, team: string[], adjacency: Map<string, Set<string>>): boolean => {
+const hasBlockConflict = (studentKey: string, teamKeys: string[], adjacency: Map<string, Set<string>>): boolean => {
   const blocked = adjacency.get(studentKey);
   if (!blocked || blocked.size === 0) {
     return false;
   }
 
-  for (const member of team) {
+  for (const member of teamKeys) {
     if (blocked.has(member)) {
       return true;
     }
@@ -80,14 +88,48 @@ const hasBlockConflict = (studentKey: string, team: string[], adjacency: Map<str
   return false;
 };
 
+const getTeamScore = (
+  team: TeamState,
+  student: Student,
+  teamIndex: number,
+  targetSize: number,
+  idealSkill: number,
+  targetGirls: number[],
+  targetBoys: number[]
+): number => {
+  const nextSize = team.members.length + 1;
+  const nextSkill = team.skillSum + student.level;
+  const skillPenalty = Math.abs(nextSkill - idealSkill);
+  const sizePenalty = nextSize / targetSize;
+
+  let genderPenalty = 0;
+  if (student.gender === "tjej") {
+    const projected = team.girls + 1;
+    const target = targetGirls[teamIndex] ?? 0;
+    genderPenalty += projected > target ? (projected - target) * 8 : Math.abs(projected - target) * 0.4;
+  }
+
+  if (student.gender === "kille") {
+    const projected = team.boys + 1;
+    const target = targetBoys[teamIndex] ?? 0;
+    genderPenalty += projected > target ? (projected - target) * 8 : Math.abs(projected - target) * 0.4;
+  }
+
+  return skillPenalty * 1.3 + sizePenalty + genderPenalty;
+};
+
 const pickTeamIndex = (
+  student: Student,
   studentKey: string,
-  teams: string[][],
+  teams: TeamState[],
   targetSizes: number[],
+  idealSkill: number,
+  targetGirls: number[],
+  targetBoys: number[],
   adjacency: Map<string, Set<string>>
 ): number | null => {
-  const candidateIndices: number[] = [];
-  let smallestTeamSize = Number.POSITIVE_INFINITY;
+  let bestScore = Number.POSITIVE_INFINITY;
+  let bestIndexes: number[] = [];
 
   for (let i = 0; i < teams.length; i += 1) {
     const team = teams[i];
@@ -96,39 +138,41 @@ const pickTeamIndex = (
       continue;
     }
 
-    if (team.length >= targetSize) {
+    if (team.members.length >= targetSize) {
       continue;
     }
 
-    if (hasBlockConflict(studentKey, team, adjacency)) {
+    if (hasBlockConflict(studentKey, team.keys, adjacency)) {
       continue;
     }
 
-    smallestTeamSize = Math.min(smallestTeamSize, team.length);
-    candidateIndices.push(i);
+    const score = getTeamScore(team, student, i, targetSize, idealSkill, targetGirls, targetBoys);
+    if (score < bestScore) {
+      bestScore = score;
+      bestIndexes = [i];
+      continue;
+    }
+
+    if (Math.abs(score - bestScore) < 0.0001) {
+      bestIndexes.push(i);
+    }
   }
 
-  if (candidateIndices.length === 0) {
+  if (bestIndexes.length === 0) {
     return null;
   }
 
-  const bestCandidates = candidateIndices.filter((index) => {
-    const team = teams[index];
-    return team !== undefined && team.length === smallestTeamSize;
-  });
-
-  const selectedPool = bestCandidates.length > 0 ? bestCandidates : candidateIndices;
-  const randomIndex = Math.floor(Math.random() * selectedPool.length);
-  return selectedPool[randomIndex] ?? null;
+  const randomIndex = Math.floor(Math.random() * bestIndexes.length);
+  return bestIndexes[randomIndex] ?? null;
 };
 
 export const generateTeams = (
-  studentsInput: string[],
+  studentsInput: Student[],
   blocks: BlockRule[],
   teamCount: number,
   maxAttempts = 2000
 ): TeamGenerationResult => {
-  const { unique: students, duplicates } = dedupeNames(studentsInput);
+  const { unique: students, duplicates } = dedupeStudents(studentsInput);
 
   if (duplicates.length > 0) {
     return {
@@ -174,12 +218,12 @@ export const generateTeams = (
     };
   }
 
-  const studentKeyToName = new Map<string, string>();
-  for (const student of students) {
-    studentKeyToName.set(normalizeName(student), student);
-  }
+  const normalized = students.map((student) => ({
+    ...student,
+    key: normalizeName(student.name)
+  }));
 
-  const studentKeys = [...studentKeyToName.keys()];
+  const studentKeys = normalized.map((student) => student.key);
   const studentKeySet = new Set(studentKeys);
   const { adjacency, invalidMissing, invalidSelf } = buildBlockValidation(studentKeySet, blocks);
 
@@ -205,22 +249,78 @@ export const generateTeams = (
     };
   }
 
-  const targetSizes = calculateTeamSizes(students.length, teamCount);
+  const totalSkill = normalized.reduce((sum, student) => sum + student.level, 0);
+  const idealSkill = totalSkill / teamCount;
+  const totalGirls = normalized.filter((student) => student.gender === "tjej").length;
+  const totalBoys = normalized.filter((student) => student.gender === "kille").length;
+
+  const targetSizes = calculateDistribution(normalized.length, teamCount);
+  const targetGirls = calculateDistribution(totalGirls, teamCount);
+  const targetBoys = calculateDistribution(totalBoys, teamCount);
+
   const attemptLimit = Math.max(1, maxAttempts);
 
   for (let attempt = 1; attempt <= attemptLimit; attempt += 1) {
-    const order = fisherYatesShuffle(studentKeys);
-    const teams = Array.from({ length: teamCount }, () => [] as string[]);
-    let failedAttempt = false;
+    const randomOrder = fisherYatesShuffle(normalized);
+    const ordered = [...randomOrder].sort((a, b) => {
+      const aDegree = adjacency.get(a.key)?.size ?? 0;
+      const bDegree = adjacency.get(b.key)?.size ?? 0;
+      if (bDegree !== aDegree) {
+        return bDegree - aDegree;
+      }
 
-    for (const studentKey of order) {
-      const teamIndex = pickTeamIndex(studentKey, teams, targetSizes, adjacency);
+      if (b.level !== a.level) {
+        return b.level - a.level;
+      }
+
+      return 0;
+    });
+
+    const teams: TeamState[] = Array.from({ length: teamCount }, () => ({
+      members: [],
+      keys: [],
+      skillSum: 0,
+      girls: 0,
+      boys: 0
+    }));
+
+    let failedAttempt = false;
+    for (const student of ordered) {
+      const teamIndex = pickTeamIndex(
+        student,
+        student.key,
+        teams,
+        targetSizes,
+        idealSkill,
+        targetGirls,
+        targetBoys,
+        adjacency
+      );
+
       if (teamIndex === null) {
         failedAttempt = true;
         break;
       }
 
-      teams[teamIndex]?.push(studentKey);
+      const team = teams[teamIndex];
+      if (!team) {
+        failedAttempt = true;
+        break;
+      }
+
+      team.keys.push(student.key);
+      team.members.push({
+        name: student.name,
+        level: student.level,
+        gender: student.gender
+      });
+      team.skillSum += student.level;
+      if (student.gender === "tjej") {
+        team.girls += 1;
+      }
+      if (student.gender === "kille") {
+        team.boys += 1;
+      }
     }
 
     if (failedAttempt) {
@@ -230,7 +330,7 @@ export const generateTeams = (
     return {
       ok: true,
       attempts: attempt,
-      teams: teams.map((team) => team.map((studentKey) => studentKeyToName.get(studentKey) ?? studentKey))
+      teams: teams.map((team) => team.members)
     };
   }
 
@@ -244,10 +344,17 @@ export const generateTeams = (
   };
 };
 
-export const formatTeamsAsText = (teams: string[][]): string =>
+export const formatTeamsAsText = (teams: Student[][]): string =>
   teams
     .map((team, index) => {
-      const members = team.map((name) => `- ${name}`).join("\n");
+      const members = team.map((student) => `- ${student.name} (nivå ${student.level}, ${student.gender})`).join("\n");
       return `Lag ${index + 1}\n${members}`;
     })
     .join("\n\n");
+
+export const summarizeTeam = (team: Student[]): string => {
+  const totalSkill = team.reduce((sum, student) => sum + student.level, 0);
+  const girls = team.filter((student) => student.gender === "tjej").length;
+  const boys = team.filter((student) => student.gender === "kille").length;
+  return `Nivåsumma: ${totalSkill} • Tjejer: ${girls} • Killar: ${boys}`;
+};

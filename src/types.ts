@@ -3,20 +3,29 @@ export interface BlockRule {
   b: string;
 }
 
+export type StudentLevel = 1 | 2 | 3;
+export type StudentGender = "tjej" | "kille" | "okänd";
+
+export interface Student {
+  name: string;
+  level: StudentLevel;
+  gender: StudentGender;
+}
+
 export interface ClassRoom {
   id: string;
   name: string;
-  students: string[];
+  students: Student[];
   blocks: BlockRule[];
 }
 
-export interface AppDataV1 {
-  version: 1;
+export interface AppDataV2 {
+  version: 2;
   activeClassId: string | null;
   classes: ClassRoom[];
 }
 
-export type AppData = AppDataV1;
+export type AppData = AppDataV2;
 
 export interface TeamGenerationError {
   message: string;
@@ -25,7 +34,7 @@ export interface TeamGenerationError {
 
 export interface TeamGenerationSuccess {
   ok: true;
-  teams: string[][];
+  teams: Student[][];
   attempts: number;
 }
 

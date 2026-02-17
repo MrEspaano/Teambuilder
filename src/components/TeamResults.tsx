@@ -1,5 +1,8 @@
+import type { Student } from "../types";
+import { summarizeTeam } from "../utils/teams";
+
 interface TeamResultsProps {
-  teams: string[][];
+  teams: Student[][];
   onCopy: () => void;
   onExport: () => void;
 }
@@ -24,9 +27,12 @@ const TeamResults = ({ teams, onCopy, onExport }: TeamResultsProps) => {
         {teams.map((team, index) => (
           <article key={`team-${index}`} className="team-card">
             <h3>Lag {index + 1}</h3>
+            <p className="muted">{summarizeTeam(team)}</p>
             <ol>
               {team.map((student) => (
-                <li key={`${student}-${index}`}>{student}</li>
+                <li key={`${student.name}-${index}`}>
+                  {student.name} (N{student.level}, {student.gender})
+                </li>
               ))}
             </ol>
           </article>

@@ -1,8 +1,8 @@
-import type { AppData, BlockRule, ClassRoom } from "../types";
-import { cleanName, dedupeNames } from "./normalize";
+import type { AppData, BlockRule, ClassRoom, Student, StudentGender, StudentLevel } from "../types";
+import { cleanName, dedupeStudents } from "./normalize";
 
 const STORAGE_KEY = "lagbyggare:data";
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 const createId = (): string => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -10,6 +10,55 @@ const createId = (): string => {
   }
 
   return `id-${Date.now()}-${Math.floor(Math.random() * 100_000)}`;
+};
+
+const sanitizeLevel = (value: unknown): StudentLevel => {
+  const parsed = Number(value);
+  if (parsed === 1 || parsed === 2 || parsed === 3) {
+    return parsed;
+  }
+
+  return 2;
+};
+
+const sanitizeGender = (value: unknown): StudentGender => {
+  const raw = cleanName(String(value ?? "")).toLocaleLowerCase("sv-SE");
+  if (raw === "tjej" || raw === "kille" || raw === "okänd") {
+    return raw;
+  }
+
+  return "okänd";
+};
+
+const sanitizeStudent = (value: unknown): Student | null => {
+  if (typeof value === "string") {
+    const name = cleanName(value);
+    if (!name) {
+      return null;
+    }
+
+    return {
+      name,
+      level: 2,
+      gender: "okänd"
+    };
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const objectValue = value as Record<string, unknown>;
+  const name = cleanName(String(objectValue.name ?? ""));
+  if (!name) {
+    return null;
+  }
+
+  return {
+    name,
+    level: sanitizeLevel(objectValue.level),
+    gender: sanitizeGender(objectValue.gender)
+  };
 };
 
 const sanitizeBlocks = (value: unknown): BlockRule[] => {
@@ -35,11 +84,13 @@ const sanitizeBlocks = (value: unknown): BlockRule[] => {
   return result;
 };
 
+const isStudent = (value: Student | null): value is Student => value !== null;
+
 const sanitizeClassRoom = (value: unknown, index: number): ClassRoom => {
   const objectValue = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
   const studentsRaw = Array.isArray(objectValue.students) ? objectValue.students : [];
-  const studentStrings = studentsRaw.map((name) => cleanName(String(name)));
-  const { unique } = dedupeNames(studentStrings);
+  const studentObjects = studentsRaw.map((student) => sanitizeStudent(student)).filter(isStudent);
+  const { unique } = dedupeStudents(studentObjects);
 
   const id = cleanName(String(objectValue.id ?? "")) || createId();
   const name = cleanName(String(objectValue.name ?? "")) || `Klass ${index + 1}`;
@@ -82,7 +133,13 @@ export const loadAppData = (): AppData => {
     return createEmptyData();
   }
 
-  const rawValue = localStorage.getItem(STORAGE_KEY);
+  let rawValue: string | null = null;
+  try {
+    rawValue = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return createEmptyData();
+  }
+
   if (!rawValue) {
     return createEmptyData();
   }
@@ -100,7 +157,11 @@ export const saveAppData = (data: AppData): void => {
     return;
   }
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // Ignore storage write errors (private mode, blocked storage, quota).
+  }
 };
 
 export const createClassRoom = (name: string): ClassRoom => ({

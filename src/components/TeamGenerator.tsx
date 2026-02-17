@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ClassRoom } from "../types";
+import type { ClassRoom, Student } from "../types";
 import TeamResults from "./TeamResults";
 import { formatTeamsAsText, generateTeams } from "../utils/teams";
 
@@ -14,7 +14,7 @@ interface TeamGeneratorProps {
 
 const TeamGenerator = ({ classData }: TeamGeneratorProps) => {
   const [teamCount, setTeamCount] = useState(2);
-  const [teams, setTeams] = useState<string[][]>([]);
+  const [teams, setTeams] = useState<Student[][]>([]);
   const [message, setMessage] = useState<Message | null>(null);
   const [attemptsUsed, setAttemptsUsed] = useState(0);
 

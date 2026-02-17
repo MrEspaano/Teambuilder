@@ -1,3 +1,5 @@
+import type { Student } from "../types";
+
 export const cleanName = (value: string): string => value.trim();
 
 export const normalizeName = (value: string): string => cleanName(value).toLocaleLowerCase("sv-SE");
@@ -12,6 +14,11 @@ export const parseNameLines = (value: string): string[] =>
 
 export interface DedupeResult {
   unique: string[];
+  duplicates: string[];
+}
+
+export interface DedupeStudentsResult {
+  unique: Student[];
   duplicates: string[];
 }
 
@@ -34,6 +41,36 @@ export const dedupeNames = (names: string[]): DedupeResult => {
 
     seen.add(key);
     unique.push(cleaned);
+  }
+
+  return {
+    unique,
+    duplicates: [...duplicates]
+  };
+};
+
+export const dedupeStudents = (students: Student[]): DedupeStudentsResult => {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  const unique: Student[] = [];
+
+  for (const student of students) {
+    const cleanedName = cleanName(student.name);
+    if (!cleanedName) {
+      continue;
+    }
+
+    const key = normalizeName(cleanedName);
+    if (seen.has(key)) {
+      duplicates.add(cleanedName);
+      continue;
+    }
+
+    seen.add(key);
+    unique.push({
+      ...student,
+      name: cleanedName
+    });
   }
 
   return {

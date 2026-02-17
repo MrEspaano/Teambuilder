@@ -4,7 +4,7 @@ import BlockRulesEditor from "./components/BlockRulesEditor";
 import ClassSelector from "./components/ClassSelector";
 import StudentEditor from "./components/StudentEditor";
 import TeamGenerator from "./components/TeamGenerator";
-import type { AppData, BlockRule } from "./types";
+import type { AppData, BlockRule, Student } from "./types";
 import { isSupabaseConfigured } from "./lib/supabase";
 import {
   clearStoredSession,
@@ -205,7 +205,7 @@ const App = () => {
     });
   };
 
-  const updateStudents = (classId: string, students: string[]) => {
+  const updateStudents = (classId: string, students: Student[]) => {
     setData((prev) => ({
       ...prev,
       classes: prev.classes.map((classRoom) =>
@@ -322,9 +322,9 @@ const App = () => {
           {isSupabaseConfigured && user ? ` Inloggad som ${user.email}.` : " Lokal lagring aktiv."}
         </p>
         {!isSupabaseConfigured && (
-          <p className="message error">
-            Supabase är inte konfigurerat ännu. Fyll i `VITE_SUPABASE_URL` och `VITE_SUPABASE_ANON_KEY` i `.env` för
-            att aktivera konto/inloggning.
+          <p className="message">
+            Info: kontoinloggning är avstängd eftersom Supabase-variabler saknas. Appen fungerar ändå med lokal
+            lagring.
           </p>
         )}
         <div className="button-row">

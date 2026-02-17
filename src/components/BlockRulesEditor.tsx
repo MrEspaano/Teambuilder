@@ -22,7 +22,7 @@ const BlockRulesEditor = ({ classData, onBlocksChange }: BlockRulesEditorProps) 
   const [studentB, setStudentB] = useState("");
   const [message, setMessage] = useState<Message | null>(null);
 
-  const students = classData?.students ?? [];
+  const students = classData?.students.map((student) => student.name) ?? [];
 
   const analyzed = useMemo(() => {
     if (!classData) {
@@ -32,7 +32,7 @@ const BlockRulesEditor = ({ classData, onBlocksChange }: BlockRulesEditorProps) 
       };
     }
 
-    const studentSet = new Set(classData.students.map((student) => normalizeName(student)));
+    const studentSet = new Set(classData.students.map((student) => normalizeName(student.name)));
     const valid: IndexedBlock[] = [];
     const invalid: IndexedBlock[] = [];
 
