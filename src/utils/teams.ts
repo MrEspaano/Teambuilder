@@ -31,6 +31,12 @@ interface TeamState {
   boys: number;
 }
 
+interface TeamQuality {
+  skillRange: number;
+  skillDeviation: number;
+  genderDeviation: number;
+}
+
 const fisherYatesShuffle = <T>(items: T[]): T[] => {
   const values = [...items];
   for (let i = values.length - 1; i > 0; i -= 1) {
@@ -274,7 +280,57 @@ const getTeamScore = (
       ? (projectedBoys - targetBoyCount) * 8
       : Math.abs(projectedBoys - targetBoyCount) * 0.4;
 
-  return skillPenalty * 1.3 + sizePenalty + girlPenalty + boyPenalty;
+  // Prioritize level balance first, then size/gender fit.
+  return skillPenalty * 4.5 + sizePenalty * 0.4 + girlPenalty + boyPenalty;
+};
+
+const evaluateTeams = (
+  teams: TeamState[],
+  idealSkill: number,
+  targetGirls: number[],
+  targetBoys: number[]
+): TeamQuality => {
+  if (teams.length === 0) {
+    return {
+      skillRange: Number.POSITIVE_INFINITY,
+      skillDeviation: Number.POSITIVE_INFINITY,
+      genderDeviation: Number.POSITIVE_INFINITY
+    };
+  }
+
+  const skillSums = teams.map((team) => team.skillSum);
+  const minSkill = Math.min(...skillSums);
+  const maxSkill = Math.max(...skillSums);
+  const skillRange = maxSkill - minSkill;
+  const skillDeviation = teams.reduce((sum, team) => sum + Math.abs(team.skillSum - idealSkill), 0);
+
+  const genderDeviation = teams.reduce((sum, team, index) => {
+    const girlTarget = targetGirls[index] ?? 0;
+    const boyTarget = targetBoys[index] ?? 0;
+    return sum + Math.abs(team.girls - girlTarget) + Math.abs(team.boys - boyTarget);
+  }, 0);
+
+  return {
+    skillRange,
+    skillDeviation,
+    genderDeviation
+  };
+};
+
+const isBetterQuality = (candidate: TeamQuality, best: TeamQuality): boolean => {
+  if (candidate.skillRange !== best.skillRange) {
+    return candidate.skillRange < best.skillRange;
+  }
+
+  if (candidate.skillDeviation !== best.skillDeviation) {
+    return candidate.skillDeviation < best.skillDeviation;
+  }
+
+  if (candidate.genderDeviation !== best.genderDeviation) {
+    return candidate.genderDeviation < best.genderDeviation;
+  }
+
+  return false;
 };
 
 const pickTeamIndex = (
@@ -468,6 +524,9 @@ export const generateTeams = (
   const targetBoys = calculateDistribution(totalBoys, teamCount);
 
   const attemptLimit = Math.max(1, maxAttempts);
+  let bestTeams: Student[][] | null = null;
+  let bestQuality: TeamQuality | null = null;
+  let bestAttempt = 0;
 
   for (let attempt = 1; attempt <= attemptLimit; attempt += 1) {
     const randomOrder = fisherYatesShuffle(groupsWithDegree);
@@ -529,10 +588,24 @@ export const generateTeams = (
       continue;
     }
 
+    const quality = evaluateTeams(teams, idealSkill, targetGirls, targetBoys);
+    if (!bestQuality || !bestTeams || isBetterQuality(quality, bestQuality)) {
+      bestQuality = quality;
+      bestTeams = teams.map((team) => team.members);
+      bestAttempt = attempt;
+    }
+
+    // Perfect level balance found; no reason to continue searching.
+    if (quality.skillRange === 0 && quality.skillDeviation === 0) {
+      break;
+    }
+  }
+
+  if (bestTeams) {
     return {
       ok: true,
-      attempts: attempt,
-      teams: teams.map((team) => team.members)
+      attempts: bestAttempt,
+      teams: bestTeams
     };
   }
 
