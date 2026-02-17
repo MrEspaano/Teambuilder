@@ -57,6 +57,21 @@ const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister, on
             </p>
           </header>
 
+          <div className="auth-feature-grid">
+            <article className="auth-feature">
+              <h3>Snabb start</h3>
+              <p>Lägg till elever i två tydliga steg och börja generera lag direkt.</p>
+            </article>
+            <article className="auth-feature">
+              <h3>Smart fördelning</h3>
+              <p>Fördela nivåer jämnare och styr med spärrregler för samma/olika lag.</p>
+            </article>
+            <article className="auth-feature">
+              <h3>Fungerar överallt</h3>
+              <p>Logga in för att nå dina klasser på flera enheter, eller testa som gäst.</p>
+            </article>
+          </div>
+
           {!previewFailed && (
             <section className="auth-preview" aria-label="Förhandsvisning av appen">
               <img

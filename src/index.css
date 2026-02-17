@@ -270,7 +270,7 @@ button.danger:hover:not(:disabled) {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, 430px);
   gap: clamp(0.8rem, 1.8vw, 1.2rem);
-  align-items: start;
+  align-items: center;
   position: relative;
   overflow: hidden;
   max-width: 1280px;
@@ -278,11 +278,18 @@ button.danger:hover:not(:disabled) {
   margin-right: auto;
 }
 
+.auth-page {
+  min-height: calc(100vh - 1.8rem);
+  display: flex;
+  align-items: center;
+}
+
 .auth-hero {
   position: relative;
   z-index: 2;
   padding: clamp(0.25rem, 1vw, 0.5rem) clamp(0.2rem, 1vw, 0.4rem);
   text-align: left;
+  align-self: start;
 }
 
 .page-header-auth {
@@ -360,7 +367,7 @@ button.danger:hover:not(:disabled) {
 }
 
 .auth-panel {
-  align-self: start;
+  align-self: center;
 }
 
 .auth-orb {
@@ -601,6 +608,12 @@ button.danger:hover:not(:disabled) {
 
   .auth-layout {
     grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .auth-page {
+    min-height: auto;
+    display: block;
   }
 
   .auth-hero {
