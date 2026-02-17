@@ -1,7 +1,7 @@
 import { sql } from "@vercel/postgres";
 
 const DEFAULT_DATA = {
-  version: 2,
+  version: 3,
   activeClassId: null,
   classes: []
 };
@@ -28,7 +28,7 @@ export const ensureSchema = async () => {
       await sql`
         create table if not exists user_app_data (
           user_id text primary key references app_users (id) on delete cascade,
-          data jsonb not null default '{"version":2,"activeClassId":null,"classes":[]}'::jsonb,
+          data jsonb not null default '{"version":3,"activeClassId":null,"classes":[]}'::jsonb,
           updated_at timestamptz not null default now()
         )
       `;

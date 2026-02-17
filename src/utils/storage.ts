@@ -2,7 +2,7 @@ import type { AppData, BlockRule, ClassRoom, Student, StudentGender, StudentLeve
 import { cleanName, dedupeStudents } from "./normalize";
 
 const STORAGE_KEY = "lagbyggare:data";
-const CURRENT_VERSION = 2;
+const CURRENT_VERSION = 3;
 
 const createId = (): string => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -30,6 +30,14 @@ const sanitizeGender = (value: unknown): StudentGender => {
   return "okänd";
 };
 
+const sanitizePresent = (value: unknown): boolean => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  return true;
+};
+
 const sanitizeStudent = (value: unknown): Student | null => {
   if (typeof value === "string") {
     const name = cleanName(value);
@@ -40,7 +48,8 @@ const sanitizeStudent = (value: unknown): Student | null => {
     return {
       name,
       level: 2,
-      gender: "okänd"
+      gender: "okänd",
+      present: true
     };
   }
 
@@ -57,11 +66,12 @@ const sanitizeStudent = (value: unknown): Student | null => {
   return {
     name,
     level: sanitizeLevel(objectValue.level),
-    gender: sanitizeGender(objectValue.gender)
+    gender: sanitizeGender(objectValue.gender),
+    present: sanitizePresent(objectValue.present)
   };
 };
 
-const sanitizeBlocks = (value: unknown): BlockRule[] => {
+const sanitizeRules = (value: unknown): BlockRule[] => {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -99,7 +109,8 @@ const sanitizeClassRoom = (value: unknown, index: number): ClassRoom => {
     id,
     name,
     students: unique,
-    blocks: sanitizeBlocks(objectValue.blocks)
+    blocks: sanitizeRules(objectValue.blocks),
+    togetherRules: sanitizeRules(objectValue.togetherRules)
   };
 };
 
@@ -168,5 +179,6 @@ export const createClassRoom = (name: string): ClassRoom => ({
   id: createId(),
   name: cleanName(name),
   students: [],
-  blocks: []
+  blocks: [],
+  togetherRules: []
 });

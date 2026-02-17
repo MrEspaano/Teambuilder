@@ -10,6 +10,7 @@ export interface Student {
   name: string;
   level: StudentLevel;
   gender: StudentGender;
+  present: boolean;
 }
 
 export interface ClassRoom {
@@ -17,15 +18,16 @@ export interface ClassRoom {
   name: string;
   students: Student[];
   blocks: BlockRule[];
+  togetherRules: BlockRule[];
 }
 
-export interface AppDataV2 {
-  version: 2;
+export interface AppDataV3 {
+  version: 3;
   activeClassId: string | null;
   classes: ClassRoom[];
 }
 
-export type AppData = AppDataV2;
+export type AppData = AppDataV3;
 
 export interface TeamGenerationError {
   message: string;

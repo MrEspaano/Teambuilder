@@ -10,6 +10,6 @@ on app_users (lower(email));
 
 create table if not exists user_app_data (
   user_id text primary key references app_users (id) on delete cascade,
-  data jsonb not null default '{"version":2,"activeClassId":null,"classes":[]}'::jsonb,
+  data jsonb not null default '{"version":3,"activeClassId":null,"classes":[]}'::jsonb,
   updated_at timestamptz not null default now()
 );

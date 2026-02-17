@@ -25,7 +25,11 @@ const TeamGenerator = ({ classData }: TeamGeneratorProps) => {
     setTeamCount(2);
   }, [classData?.id]);
 
-  const hasStudents = useMemo(() => (classData?.students.length ?? 0) > 0, [classData?.students.length]);
+  const presentCount = useMemo(
+    () => classData?.students.filter((student) => student.present).length ?? 0,
+    [classData?.students]
+  );
+  const hasStudents = presentCount >= 2;
 
   if (!classData) {
     return (
@@ -47,7 +51,7 @@ const TeamGenerator = ({ classData }: TeamGeneratorProps) => {
   };
 
   const handleGenerate = () => {
-    const result = generateTeams(classData.students, classData.blocks, teamCount, 2000);
+    const result = generateTeams(classData.students, classData.blocks, classData.togetherRules, teamCount, 2000);
 
     if (!result.ok) {
       setTeams([]);
@@ -113,7 +117,10 @@ const TeamGenerator = ({ classData }: TeamGeneratorProps) => {
   return (
     <section>
       <h2>Lag-generator</h2>
-      <p className="muted">Antal lag: 2–10. Fördelningen blir så jämn som möjligt.</p>
+      <p className="muted">
+        Antal lag: 2–10. Endast närvarande elever inkluderas i laggenereringen.
+        {` Närvarande: ${presentCount}.`}
+      </p>
 
       <div className="input-row">
         <label htmlFor="team-count">Antal lag</label>
@@ -137,6 +144,7 @@ const TeamGenerator = ({ classData }: TeamGeneratorProps) => {
       </div>
 
       {message && <p className={`message ${message.type}`}>{message.text}</p>}
+      {presentCount < 2 && <p className="empty-state">Markera minst två elever som närvarande för att kunna generera lag.</p>}
       {attemptsUsed > 0 && <p className="muted">Försök använda: {attemptsUsed} / 2000</p>}
 
       <TeamResults teams={teams} onCopy={handleCopy} onExport={handleExport} />

@@ -18,7 +18,8 @@ const DEFAULT_GENDER: StudentGender = "okänd";
 const createStudent = (name: string, level: StudentLevel, gender: StudentGender): Student => ({
   name: name.trim(),
   level,
-  gender
+  gender,
+  present: true
 });
 
 const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
@@ -30,17 +31,25 @@ const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
     setMessage(null);
   }, [classData?.id, classData?.students]);
 
-  const genderCount = useMemo(() => {
+  const studentStats = useMemo(() => {
     if (!classData) {
-      return { tjej: 0, kille: 0, okänd: 0 };
+      return { tjej: 0, kille: 0, okänd: 0, present: 0, absent: 0 };
     }
 
     return classData.students.reduce(
       (acc, student) => {
         acc[student.gender] += 1;
+        if (student.present) {
+          acc.present += 1;
+        } else {
+          acc.absent += 1;
+        }
         return acc;
       },
-      { tjej: 0, kille: 0, okänd: 0 } as Record<StudentGender, number>
+      { tjej: 0, kille: 0, okänd: 0, present: 0, absent: 0 } as Record<StudentGender, number> & {
+        present: number;
+        absent: number;
+      }
     );
   }, [classData]);
 
@@ -155,6 +164,19 @@ const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
     saveStudents(updated);
   };
 
+  const handleStudentPresenceChange = (index: number, present: boolean) => {
+    const updated = classData.students.map((student, studentIndex) =>
+      studentIndex === index
+        ? {
+            ...student,
+            present
+          }
+        : student
+    );
+
+    saveStudents(updated);
+  };
+
   return (
     <section>
       <h2>Elever i {classData.name}</h2>
@@ -166,6 +188,7 @@ const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
         <h3>Steg 1: Lägg till elevnamn</h3>
         <div className="input-row">
           <input
+            type="text"
             aria-label="Nytt elevnamn"
             placeholder="Skriv elevens namn"
             value={quickName}
@@ -185,20 +208,30 @@ const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
       </div>
 
       <div className="editor-step">
-        <h3>Steg 2: Sätt nivå och kön i listan</h3>
+        <h3>Steg 2: Sätt nivå, kön och närvaro i listan</h3>
         <p className="muted">
-          Nya elever får automatiskt nivå 2 och kön Okänd tills du ändrar.
+          Nya elever får automatiskt nivå 2, kön Okänd och markeras som närvarande.
         </p>
         <p className="muted">
-          Antal elever: {classData.students.length} • Tjejer: {genderCount.tjej} • Killar: {genderCount.kille} • Okänd:{" "}
-          {genderCount.okänd}
+          Antal elever: {classData.students.length} • Närvarande: {studentStats.present} • Frånvarande:{" "}
+          {studentStats.absent} • Tjejer: {studentStats.tjej} • Killar: {studentStats.kille} • Okänd: {studentStats.okänd}
         </p>
 
         {classData.students.length > 0 ? (
           <ul className="student-list">
             {classData.students.map((student, index) => (
-              <li key={`${student.name}-${index}`} className="student-row">
+              <li key={`${student.name}-${index}`} className={`student-row${student.present ? "" : " absent"}`}>
+                <label className="presence-toggle">
+                  <input
+                    type="checkbox"
+                    checked={student.present}
+                    onChange={(event) => handleStudentPresenceChange(index, event.target.checked)}
+                    aria-label={`Närvaro för ${student.name}`}
+                  />
+                  Närvarande
+                </label>
                 <input
+                  type="text"
                   value={student.name}
                   onChange={(event) => handleStudentNameChange(index, event.target.value)}
                   aria-label={`Namn för elev ${index + 1}`}

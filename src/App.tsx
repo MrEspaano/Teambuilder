@@ -261,6 +261,20 @@ const App = () => {
     }));
   };
 
+  const updateTogetherRules = (classId: string, togetherRules: BlockRule[]) => {
+    setData((prev) => ({
+      ...prev,
+      classes: prev.classes.map((classRoom) =>
+        classRoom.id === classId
+          ? {
+              ...classRoom,
+              togetherRules
+            }
+          : classRoom
+      )
+    }));
+  };
+
   const login = async (email: string, password: string) => {
     setIsAuthLoading(true);
     setInfoMessage(null);
@@ -355,7 +369,11 @@ const App = () => {
             <StudentEditor classData={activeClass} onStudentsChange={updateStudents} />
           </div>
           <div className="panel">
-            <BlockRulesEditor classData={activeClass} onBlocksChange={updateBlocks} />
+            <BlockRulesEditor
+              classData={activeClass}
+              onBlocksChange={updateBlocks}
+              onTogetherRulesChange={updateTogetherRules}
+            />
           </div>
           <div className="panel">
             <TeamGenerator classData={activeClass} />

@@ -116,7 +116,7 @@ button {
   font: inherit;
 }
 
-input,
+input:not([type="checkbox"]),
 textarea,
 select {
   width: 100%;
@@ -132,7 +132,7 @@ textarea {
   margin-top: 0.75rem;
 }
 
-.input-row > input,
+.input-row > input:not([type="checkbox"]),
 .input-row > select {
   flex: 1 1 150px;
   width: auto;
@@ -236,7 +236,7 @@ button.danger:hover:not(:disabled) {
   font-size: 1rem;
 }
 
-.student-row input {
+.student-row input[type="text"] {
   flex: 1.8 1 220px;
   min-width: 120px;
 }
@@ -244,6 +244,26 @@ button.danger:hover:not(:disabled) {
 .student-row select {
   flex: 1 1 140px;
   width: auto;
+}
+
+.student-row.absent {
+  opacity: 0.72;
+}
+
+.presence-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.presence-toggle input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--primary);
 }
 
 .class-list li.active {
@@ -356,7 +376,8 @@ button.danger:hover:not(:disabled) {
     align-items: stretch;
   }
 
-  .student-row input,
+  .student-row .presence-toggle,
+  .student-row input[type="text"],
   .student-row select,
   .student-row button {
     flex: 1 1 100%;

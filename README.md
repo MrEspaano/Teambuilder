@@ -7,7 +7,9 @@ En webapp för idrottslärare där varje användare skapar eget konto (e-post + 
 - skapa klasser
 - lägga in och redigera elevlistor
 - sätta nivå (1-3) och kön (tjej/kille/okänd) per elev
+- markera närvaro per lektion (frånvarande elever exkluderas från laggenerering)
 - lägga till blockeringspar (elever som inte får vara i samma lag)
+- lägga till par som alltid ska vara i samma lag
 - generera slumpade och jämnt fördelade lag
 - kopiera/exportera resultat
 - konto per användare med data synkad mellan enheter
@@ -82,7 +84,9 @@ type Class = {
     name: string;
     level: 1 | 2 | 3;
     gender: "tjej" | "kille" | "okänd";
+    present: boolean;
   }>;
   blocks: Array<{ a: string; b: string }>;
+  togetherRules: Array<{ a: string; b: string }>;
 };
 ```
