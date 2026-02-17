@@ -225,6 +225,26 @@ button.danger:hover:not(:disabled) {
   background: #f9fdfb;
 }
 
+.editor-step {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed #b6d0c5;
+}
+
+.editor-step h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+
+.student-row input {
+  flex: 1.8 1 220px;
+}
+
+.student-row select {
+  flex: 1 1 140px;
+  width: auto;
+}
+
 .class-list li.active {
   border-color: var(--primary);
 }

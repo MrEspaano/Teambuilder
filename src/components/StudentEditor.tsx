@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ClassRoom, Student, StudentGender, StudentLevel } from "../types";
-import { dedupeNames, normalizeName, parseNameLines } from "../utils/normalize";
+import { normalizeName } from "../utils/normalize";
 
 interface StudentEditorProps {
   classData: ClassRoom | null;
@@ -22,22 +22,11 @@ const createStudent = (name: string, level: StudentLevel, gender: StudentGender)
 });
 
 const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
-  const [draftText, setDraftText] = useState("");
   const [quickName, setQuickName] = useState("");
-  const [quickLevel, setQuickLevel] = useState<StudentLevel>(DEFAULT_LEVEL);
-  const [quickGender, setQuickGender] = useState<StudentGender>(DEFAULT_GENDER);
-  const [bulkLevel, setBulkLevel] = useState<StudentLevel>(DEFAULT_LEVEL);
-  const [bulkGender, setBulkGender] = useState<StudentGender>(DEFAULT_GENDER);
   const [message, setMessage] = useState<Message | null>(null);
 
   useEffect(() => {
-    const names = classData?.students.map((student) => student.name).join("\n") ?? "";
-    setDraftText(names);
     setQuickName("");
-    setQuickLevel(DEFAULT_LEVEL);
-    setQuickGender(DEFAULT_GENDER);
-    setBulkLevel(DEFAULT_LEVEL);
-    setBulkGender(DEFAULT_GENDER);
     setMessage(null);
   }, [classData?.id, classData?.students]);
 
@@ -66,48 +55,11 @@ const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
 
   const saveStudents = (students: Student[]) => {
     onStudentsChange(classData.id, students);
-    setDraftText(students.map((student) => student.name).join("\n"));
   };
 
   const hasDuplicateName = (students: Student[], name: string, ignoreIndex: number | null): boolean => {
     const normalized = normalizeName(name);
     return students.some((student, index) => index !== ignoreIndex && normalizeName(student.name) === normalized);
-  };
-
-  const handleSaveList = () => {
-    const parsed = parseNameLines(draftText);
-    const { unique, duplicates } = dedupeNames(parsed);
-    if (duplicates.length > 0) {
-      setMessage({
-        type: "error",
-        text: `Dubbla namn hittades: ${duplicates.join(", ")}.`
-      });
-      return;
-    }
-
-    const existingByName = new Map(classData.students.map((student) => [normalizeName(student.name), student] as const));
-    const students = unique.map((name) => {
-      const existing = existingByName.get(normalizeName(name));
-      if (existing) {
-        return {
-          ...existing,
-          name
-        };
-      }
-
-      return createStudent(name, bulkLevel, bulkGender);
-    });
-
-    saveStudents(students);
-    setMessage({
-      type: "success",
-      text: "Elevlistan är sparad."
-    });
-  };
-
-  const handleReset = () => {
-    setDraftText(classData.students.map((student) => student.name).join("\n"));
-    setMessage(null);
   };
 
   const handleQuickAdd = () => {
@@ -128,7 +80,7 @@ const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
       return;
     }
 
-    const updated = [...classData.students, createStudent(cleaned, quickLevel, quickGender)];
+    const updated = [...classData.students, createStudent(cleaned, DEFAULT_LEVEL, DEFAULT_GENDER)];
     saveStudents(updated);
     setQuickName("");
     setMessage({
@@ -206,107 +158,79 @@ const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
   return (
     <section>
       <h2>Elever i {classData.name}</h2>
-      <p className="muted">
-        Ange nivå 1-3 och kön per elev. Laggenereringen försöker jämna ut både nivåsumma och könsfördelning.
-      </p>
-
-      <div className="input-row">
-        <input
-          aria-label="Nytt elevnamn"
-          placeholder="Lägg till elev"
-          value={quickName}
-          onChange={(event) => setQuickName(event.target.value)}
-          maxLength={80}
-        />
-        <select value={quickLevel} onChange={(event) => setQuickLevel(Number(event.target.value) as StudentLevel)}>
-          <option value={1}>Nivå 1</option>
-          <option value={2}>Nivå 2</option>
-          <option value={3}>Nivå 3</option>
-        </select>
-        <select value={quickGender} onChange={(event) => setQuickGender(event.target.value as StudentGender)}>
-          <option value="tjej">Tjej</option>
-          <option value="kille">Kille</option>
-          <option value="okänd">Okänd</option>
-        </select>
-        <button type="button" onClick={handleQuickAdd}>
-          Lägg till elev
-        </button>
-      </div>
+      <p className="muted">Arbeta i två steg: 1) Lägg till namn, 2) Välj nivå och kön i listan.</p>
 
       {message && <p className={`message ${message.type}`}>{message.text}</p>}
 
-      <p className="muted">Klistra in elevnamn (ett per rad). Nya namn får nivå/kön enligt valen nedan.</p>
-
-      <div className="input-row">
-        <label htmlFor="bulk-level">Standardnivå för nya namn</label>
-        <select id="bulk-level" value={bulkLevel} onChange={(event) => setBulkLevel(Number(event.target.value) as StudentLevel)}>
-          <option value={1}>Nivå 1</option>
-          <option value={2}>Nivå 2</option>
-          <option value={3}>Nivå 3</option>
-        </select>
-        <label htmlFor="bulk-gender">Standardkön för nya namn</label>
-        <select id="bulk-gender" value={bulkGender} onChange={(event) => setBulkGender(event.target.value as StudentGender)}>
-          <option value="tjej">Tjej</option>
-          <option value="kille">Kille</option>
-          <option value="okänd">Okänd</option>
-        </select>
+      <div className="editor-step">
+        <h3>Steg 1: Lägg till elevnamn</h3>
+        <div className="input-row">
+          <input
+            aria-label="Nytt elevnamn"
+            placeholder="Skriv elevens namn"
+            value={quickName}
+            onChange={(event) => setQuickName(event.target.value)}
+            maxLength={80}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                handleQuickAdd();
+              }
+            }}
+          />
+          <button type="button" onClick={handleQuickAdd}>
+            Lägg till elev
+          </button>
+        </div>
       </div>
 
-      <textarea
-        value={draftText}
-        onChange={(event) => setDraftText(event.target.value)}
-        rows={10}
-        placeholder="Ett namn per rad"
-      />
+      <div className="editor-step">
+        <h3>Steg 2: Sätt nivå och kön i listan</h3>
+        <p className="muted">
+          Nya elever får automatiskt nivå 2 och kön Okänd tills du ändrar.
+        </p>
+        <p className="muted">
+          Antal elever: {classData.students.length} • Tjejer: {genderCount.tjej} • Killar: {genderCount.kille} • Okänd:{" "}
+          {genderCount.okänd}
+        </p>
 
-      <div className="button-row">
-        <button type="button" onClick={handleSaveList}>
-          Spara elevlista
-        </button>
-        <button type="button" className="ghost" onClick={handleReset}>
-          Återställ osparat
-        </button>
+        {classData.students.length > 0 ? (
+          <ul className="student-list">
+            {classData.students.map((student, index) => (
+              <li key={`${student.name}-${index}`} className="student-row">
+                <input
+                  value={student.name}
+                  onChange={(event) => handleStudentNameChange(index, event.target.value)}
+                  aria-label={`Namn för elev ${index + 1}`}
+                />
+                <select
+                  value={student.level}
+                  onChange={(event) => handleStudentLevelChange(index, Number(event.target.value) as StudentLevel)}
+                  aria-label={`Nivå för ${student.name}`}
+                >
+                  <option value={1}>Nivå 1</option>
+                  <option value={2}>Nivå 2</option>
+                  <option value={3}>Nivå 3</option>
+                </select>
+                <select
+                  value={student.gender}
+                  onChange={(event) => handleStudentGenderChange(index, event.target.value as StudentGender)}
+                  aria-label={`Kön för ${student.name}`}
+                >
+                  <option value="tjej">Tjej</option>
+                  <option value="kille">Kille</option>
+                  <option value="okänd">Okänd</option>
+                </select>
+                <button type="button" className="danger ghost" onClick={() => handleRemoveStudent(index)}>
+                  Ta bort
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="empty-state">Lägg till första eleven i steg 1.</p>
+        )}
       </div>
-
-      <p className="muted">
-        Antal elever: {classData.students.length} • Tjejer: {genderCount.tjej} • Killar: {genderCount.kille} • Okänd:{" "}
-        {genderCount.okänd}
-      </p>
-
-      {classData.students.length > 0 && (
-        <ul className="student-list">
-          {classData.students.map((student, index) => (
-            <li key={`${student.name}-${index}`} className="student-row">
-              <input
-                value={student.name}
-                onChange={(event) => handleStudentNameChange(index, event.target.value)}
-                aria-label={`Namn för elev ${index + 1}`}
-              />
-              <select
-                value={student.level}
-                onChange={(event) => handleStudentLevelChange(index, Number(event.target.value) as StudentLevel)}
-                aria-label={`Nivå för ${student.name}`}
-              >
-                <option value={1}>Nivå 1</option>
-                <option value={2}>Nivå 2</option>
-                <option value={3}>Nivå 3</option>
-              </select>
-              <select
-                value={student.gender}
-                onChange={(event) => handleStudentGenderChange(index, event.target.value as StudentGender)}
-                aria-label={`Kön för ${student.name}`}
-              >
-                <option value="tjej">Tjej</option>
-                <option value="kille">Kille</option>
-                <option value="okänd">Okänd</option>
-              </select>
-              <button type="button" className="danger ghost" onClick={() => handleRemoveStudent(index)}>
-                Ta bort
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
     </section>
   );
 };
