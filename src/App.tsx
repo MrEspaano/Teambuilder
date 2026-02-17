@@ -455,7 +455,7 @@ const App = () => {
           <span className="app-logo" aria-hidden="true">
             TB
           </span>
-          <h1>Lagbyggare för idrott</h1>
+          <h1>TeamBuilder</h1>
         </div>
         <p>
           Skapa klasser, hantera elevlistor och generera slumpade lag med blockeringar.
