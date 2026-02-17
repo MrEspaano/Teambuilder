@@ -6,9 +6,10 @@ interface AuthPanelProps {
   infoMessage: string | null;
   onLogin: (email: string, password: string) => Promise<void>;
   onRegister: (email: string, password: string) => Promise<void>;
+  onGuestLogin: () => Promise<void>;
 }
 
-const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister }: AuthPanelProps) => {
+const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister, onGuestLogin }: AuthPanelProps) => {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -84,6 +85,9 @@ const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister }: 
             disabled={loading}
           >
             {mode === "login" ? "Jag vill skapa konto" : "Jag har redan konto"}
+          </button>
+          <button type="button" className="ghost" onClick={onGuestLogin} disabled={loading}>
+            Logga in som gäst
           </button>
         </div>
       </main>

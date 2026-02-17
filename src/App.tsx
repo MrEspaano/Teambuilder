@@ -17,11 +17,14 @@ import {
 import type { AuthSession } from "./utils/authApi";
 import { isCloudAuthError, loadUserAppData, saveUserAppData } from "./utils/cloudStorage";
 import { normalizeName } from "./utils/normalize";
-import { createClassRoom, createEmptyData } from "./utils/storage";
+import { createClassRoom, createEmptyData, loadAppData, saveAppData } from "./utils/storage";
+
+const GUEST_MODE_KEY = "lagbyggare:guest-mode";
 
 const App = () => {
   const [data, setData] = useState<AppData>(createEmptyData());
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
   const [isDataReady, setIsDataReady] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -38,6 +41,16 @@ const App = () => {
           return;
         }
 
+        const guestEnabled = typeof localStorage !== "undefined" && localStorage.getItem(GUEST_MODE_KEY) === "1";
+        if (guestEnabled) {
+          setIsGuestMode(true);
+          setData(loadAppData());
+          setIsAuthLoading(false);
+          setIsDataReady(true);
+          return;
+        }
+
+        setIsGuestMode(false);
         setAuthSession(null);
         setIsAuthLoading(false);
         setIsDataReady(true);
@@ -58,6 +71,7 @@ const App = () => {
           ...stored,
           email: currentUser.email
         };
+        setIsGuestMode(false);
         setAuthSession(nextSession);
         saveStoredSession(nextSession);
         setErrorMessage(null);
@@ -67,6 +81,7 @@ const App = () => {
         }
 
         clearStoredSession();
+        setIsGuestMode(false);
         setAuthSession(null);
       } finally {
         if (isMounted) {
@@ -90,6 +105,12 @@ const App = () => {
     let isMounted = true;
 
     const loadData = async () => {
+      if (isGuestMode) {
+        setData(loadAppData());
+        setIsDataReady(true);
+        return;
+      }
+
       if (!authSession) {
         setData(createEmptyData());
         setIsDataReady(true);
@@ -112,6 +133,7 @@ const App = () => {
 
         if (isCloudAuthError(error)) {
           clearStoredSession();
+          setIsGuestMode(false);
           setAuthSession(null);
           setData(createEmptyData());
           setInfoMessage("Sessionen gick ut. Logga in igen.");
@@ -132,10 +154,19 @@ const App = () => {
     return () => {
       isMounted = false;
     };
-  }, [authSession, isAuthLoading]);
+  }, [authSession, isAuthLoading, isGuestMode]);
 
   useEffect(() => {
-    if (!isDataReady || !authSession) {
+    if (!isDataReady) {
+      return;
+    }
+
+    if (isGuestMode) {
+      saveAppData(data);
+      return;
+    }
+
+    if (!authSession) {
       return;
     }
 
@@ -148,6 +179,7 @@ const App = () => {
         } catch (error) {
           if (isCloudAuthError(error)) {
             clearStoredSession();
+            setIsGuestMode(false);
             setAuthSession(null);
             setInfoMessage("Sessionen gick ut. Logga in igen.");
             setErrorMessage(null);
@@ -164,7 +196,7 @@ const App = () => {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [data, isDataReady, authSession]);
+  }, [data, isDataReady, authSession, isGuestMode]);
 
   const activeClass = useMemo(
     () => data.classes.find((classRoom) => classRoom.id === data.activeClassId) ?? null,
@@ -282,6 +314,10 @@ const App = () => {
 
     try {
       const session = await loginWithEmail(email, password);
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(GUEST_MODE_KEY);
+      }
+      setIsGuestMode(false);
       setAuthSession(session);
       saveStoredSession(session);
     } catch (error) {
@@ -299,6 +335,10 @@ const App = () => {
 
     try {
       const session = await signupWithEmail(email, password);
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(GUEST_MODE_KEY);
+      }
+      setIsGuestMode(false);
       setAuthSession(session);
       saveStoredSession(session);
     } catch (error) {
@@ -309,11 +349,31 @@ const App = () => {
     }
   };
 
+  const enterGuestMode = async () => {
+    clearStoredSession();
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(GUEST_MODE_KEY, "1");
+    }
+
+    setAuthSession(null);
+    setIsGuestMode(true);
+    setData(loadAppData());
+    setErrorMessage(null);
+    setInfoMessage("Gästläge aktivt. Data sparas lokalt på den här enheten.");
+    setIsAuthLoading(false);
+    setIsDataReady(true);
+  };
+
   const logout = async () => {
     if (authSession) {
       await logoutSession(authSession.accessToken);
     }
 
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(GUEST_MODE_KEY);
+    }
+
+    setIsGuestMode(false);
     setAuthSession(null);
     setData(createEmptyData());
     setErrorMessage(null);
@@ -322,7 +382,7 @@ const App = () => {
     clearStoredSession();
   };
 
-  if (!authSession) {
+  if (!authSession && !isGuestMode) {
     return (
       <AuthPanel
         loading={isAuthLoading}
@@ -330,6 +390,7 @@ const App = () => {
         infoMessage={infoMessage}
         onLogin={login}
         onRegister={register}
+        onGuestLogin={enterGuestMode}
       />
     );
   }
@@ -340,13 +401,15 @@ const App = () => {
         <h1>Lagbyggare för idrott</h1>
         <p>
           Skapa klasser, hantera elevlistor och generera slumpade lag med blockeringar.
-          {` Inloggad som ${authSession.email}.`}
+          {isGuestMode ? " Gästläge." : ` Inloggad som ${authSession?.email}.`}
         </p>
         <div className="button-row">
           <button type="button" className="ghost" onClick={logout}>
-            Logga ut
+            {isGuestMode ? "Avsluta gästläge" : "Logga ut"}
           </button>
-          <span className="muted">{isSaving ? "Sparar i konto..." : "Synkat med konto"}</span>
+          <span className="muted">
+            {isGuestMode ? "Lokal lagring på enheten" : isSaving ? "Sparar i konto..." : "Synkat med konto"}
+          </span>
         </div>
       </header>
 
