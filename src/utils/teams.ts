@@ -1,4 +1,4 @@
-import type { BlockRule, Student, TeamGenerationResult } from "../types";
+import type { BlockRule, Student, StudentLevel, TeamGenerationResult } from "../types";
 import { dedupeStudents, makePairKey, normalizeName } from "./normalize";
 
 interface PairValidation {
@@ -19,6 +19,7 @@ interface StudentGroup {
   skillSum: number;
   girls: number;
   boys: number;
+  levelCounts: Record<StudentLevel, number>;
   degree: number;
 }
 
@@ -29,13 +30,18 @@ interface TeamState {
   skillSum: number;
   girls: number;
   boys: number;
+  levelCounts: Record<StudentLevel, number>;
 }
 
 interface TeamQuality {
+  levelGap: number;
+  levelDeviation: number;
   skillRange: number;
   skillDeviation: number;
   genderDeviation: number;
 }
+
+type LevelTargets = Record<StudentLevel, number[]>;
 
 const fisherYatesShuffle = <T>(items: T[]): T[] => {
   const values = [...items];
@@ -152,6 +158,10 @@ const buildStudentGroups = (students: StudentNode[], togetherAdjacency: Map<stri
     const skillSum = members.reduce((sum, student) => sum + student.level, 0);
     const girls = members.filter((student) => student.gender === "tjej").length;
     const boys = members.filter((student) => student.gender === "kille").length;
+    const levelCounts: Record<StudentLevel, number> = { 1: 0, 2: 0, 3: 0 };
+    for (const member of members) {
+      levelCounts[member.level] += 1;
+    }
 
     groups.push({
       id: root,
@@ -161,6 +171,7 @@ const buildStudentGroups = (students: StudentNode[], togetherAdjacency: Map<stri
       skillSum,
       girls,
       boys,
+      levelCounts,
       degree: 0
     });
   }
@@ -258,7 +269,8 @@ const getTeamScore = (
   targetSize: number,
   idealSkill: number,
   targetGirls: number[],
-  targetBoys: number[]
+  targetBoys: number[],
+  levelTargets: LevelTargets
 ): number => {
   const nextSize = team.members.length + group.size;
   const nextSkill = team.skillSum + group.skillSum;
@@ -280,18 +292,28 @@ const getTeamScore = (
       ? (projectedBoys - targetBoyCount) * 8
       : Math.abs(projectedBoys - targetBoyCount) * 0.4;
 
+  let levelPenalty = 0;
+  for (const level of [1, 2, 3] as const) {
+    const projected = team.levelCounts[level] + group.levelCounts[level];
+    const target = levelTargets[level][teamIndex] ?? 0;
+    levelPenalty += projected > target ? (projected - target) * 9 : Math.abs(projected - target) * 0.8;
+  }
+
   // Prioritize level balance first, then size/gender fit.
-  return skillPenalty * 4.5 + sizePenalty * 0.4 + girlPenalty + boyPenalty;
+  return skillPenalty * 4.2 + levelPenalty * 2.6 + sizePenalty * 0.4 + girlPenalty + boyPenalty;
 };
 
 const evaluateTeams = (
   teams: TeamState[],
   idealSkill: number,
   targetGirls: number[],
-  targetBoys: number[]
+  targetBoys: number[],
+  levelTargets: LevelTargets
 ): TeamQuality => {
   if (teams.length === 0) {
     return {
+      levelGap: Number.POSITIVE_INFINITY,
+      levelDeviation: Number.POSITIVE_INFINITY,
       skillRange: Number.POSITIVE_INFINITY,
       skillDeviation: Number.POSITIVE_INFINITY,
       genderDeviation: Number.POSITIVE_INFINITY
@@ -304,6 +326,21 @@ const evaluateTeams = (
   const skillRange = maxSkill - minSkill;
   const skillDeviation = teams.reduce((sum, team) => sum + Math.abs(team.skillSum - idealSkill), 0);
 
+  let levelGap = 0;
+  let levelDeviation = 0;
+  for (const level of [1, 2, 3] as const) {
+    const counts = teams.map((team) => team.levelCounts[level]);
+    const minLevel = Math.min(...counts);
+    const maxLevel = Math.max(...counts);
+    levelGap = Math.max(levelGap, maxLevel - minLevel);
+
+    for (let i = 0; i < teams.length; i += 1) {
+      const target = levelTargets[level][i] ?? 0;
+      const current = counts[i] ?? 0;
+      levelDeviation += Math.abs(current - target);
+    }
+  }
+
   const genderDeviation = teams.reduce((sum, team, index) => {
     const girlTarget = targetGirls[index] ?? 0;
     const boyTarget = targetBoys[index] ?? 0;
@@ -311,6 +348,8 @@ const evaluateTeams = (
   }, 0);
 
   return {
+    levelGap,
+    levelDeviation,
     skillRange,
     skillDeviation,
     genderDeviation
@@ -318,6 +357,14 @@ const evaluateTeams = (
 };
 
 const isBetterQuality = (candidate: TeamQuality, best: TeamQuality): boolean => {
+  if (candidate.levelGap !== best.levelGap) {
+    return candidate.levelGap < best.levelGap;
+  }
+
+  if (candidate.levelDeviation !== best.levelDeviation) {
+    return candidate.levelDeviation < best.levelDeviation;
+  }
+
   if (candidate.skillRange !== best.skillRange) {
     return candidate.skillRange < best.skillRange;
   }
@@ -340,7 +387,8 @@ const pickTeamIndex = (
   idealSkill: number,
   targetGirls: number[],
   targetBoys: number[],
-  groupAdjacency: Map<string, Set<string>>
+  groupAdjacency: Map<string, Set<string>>,
+  levelTargets: LevelTargets
 ): number | null => {
   let bestScore = Number.POSITIVE_INFINITY;
   let bestIndexes: number[] = [];
@@ -360,7 +408,7 @@ const pickTeamIndex = (
       continue;
     }
 
-    const score = getTeamScore(team, group, i, targetSize, idealSkill, targetGirls, targetBoys);
+    const score = getTeamScore(team, group, i, targetSize, idealSkill, targetGirls, targetBoys, levelTargets);
     if (score < bestScore) {
       bestScore = score;
       bestIndexes = [i];
@@ -519,9 +567,17 @@ export const generateTeams = (
   const idealSkill = totalSkill / teamCount;
   const totalGirls = normalizedPresent.filter((student) => student.gender === "tjej").length;
   const totalBoys = normalizedPresent.filter((student) => student.gender === "kille").length;
+  const totalLevel1 = normalizedPresent.filter((student) => student.level === 1).length;
+  const totalLevel2 = normalizedPresent.filter((student) => student.level === 2).length;
+  const totalLevel3 = normalizedPresent.filter((student) => student.level === 3).length;
 
   const targetGirls = calculateDistribution(totalGirls, teamCount);
   const targetBoys = calculateDistribution(totalBoys, teamCount);
+  const levelTargets: LevelTargets = {
+    1: calculateDistribution(totalLevel1, teamCount),
+    2: calculateDistribution(totalLevel2, teamCount),
+    3: calculateDistribution(totalLevel3, teamCount)
+  };
 
   const attemptLimit = Math.max(1, maxAttempts);
   let bestTeams: Student[][] | null = null;
@@ -552,12 +608,22 @@ export const generateTeams = (
       groupIds: [],
       skillSum: 0,
       girls: 0,
-      boys: 0
+      boys: 0,
+      levelCounts: { 1: 0, 2: 0, 3: 0 }
     }));
 
     let failedAttempt = false;
     for (const group of ordered) {
-      const teamIndex = pickTeamIndex(group, teams, targetSizes, idealSkill, targetGirls, targetBoys, groupAdjacency);
+      const teamIndex = pickTeamIndex(
+        group,
+        teams,
+        targetSizes,
+        idealSkill,
+        targetGirls,
+        targetBoys,
+        groupAdjacency,
+        levelTargets
+      );
       if (teamIndex === null) {
         failedAttempt = true;
         break;
@@ -582,13 +648,16 @@ export const generateTeams = (
       team.skillSum += group.skillSum;
       team.girls += group.girls;
       team.boys += group.boys;
+      team.levelCounts[1] += group.levelCounts[1];
+      team.levelCounts[2] += group.levelCounts[2];
+      team.levelCounts[3] += group.levelCounts[3];
     }
 
     if (failedAttempt) {
       continue;
     }
 
-    const quality = evaluateTeams(teams, idealSkill, targetGirls, targetBoys);
+    const quality = evaluateTeams(teams, idealSkill, targetGirls, targetBoys, levelTargets);
     if (!bestQuality || !bestTeams || isBetterQuality(quality, bestQuality)) {
       bestQuality = quality;
       bestTeams = teams.map((team) => team.members);
@@ -596,7 +665,7 @@ export const generateTeams = (
     }
 
     // Perfect level balance found; no reason to continue searching.
-    if (quality.skillRange === 0 && quality.skillDeviation === 0) {
+    if (quality.levelGap === 0 && quality.levelDeviation === 0 && quality.skillRange === 0 && quality.skillDeviation === 0) {
       break;
     }
   }
