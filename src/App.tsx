@@ -6,6 +6,7 @@ import StudentEditor from "./components/StudentEditor";
 import TeamGenerator from "./components/TeamGenerator";
 import type { AppData, BlockRule, Student } from "./types";
 import {
+  AuthApiError,
   clearStoredSession,
   fetchCurrentUser,
   loginWithEmail,
@@ -15,6 +16,8 @@ import {
   signupWithEmail
 } from "./utils/authApi";
 import type { AuthSession } from "./utils/authApi";
+import { fetchAdminAccountEmails } from "./utils/adminApi";
+import type { AdminAccountUser } from "./utils/adminApi";
 import { isCloudAuthError, loadUserAppData, saveUserAppData } from "./utils/cloudStorage";
 import { normalizeName } from "./utils/normalize";
 import { createClassRoom, createEmptyData, loadAppData, saveAppData } from "./utils/storage";
@@ -28,6 +31,9 @@ const App = () => {
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
   const [isDataReady, setIsDataReady] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isAdminLoading, setIsAdminLoading] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [adminUsers, setAdminUsers] = useState<AdminAccountUser[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
@@ -197,6 +203,53 @@ const App = () => {
       window.clearTimeout(timeoutId);
     };
   }, [data, isDataReady, authSession, isGuestMode]);
+
+  useEffect(() => {
+    if (isAuthLoading || isGuestMode || !authSession) {
+      setIsAdmin(false);
+      setAdminUsers([]);
+      setIsAdminLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadAdminUsers = async () => {
+      setIsAdminLoading(true);
+      try {
+        const users = await fetchAdminAccountEmails(authSession.accessToken);
+        if (!isMounted) {
+          return;
+        }
+
+        setIsAdmin(true);
+        setAdminUsers(users);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        if (error instanceof AuthApiError && error.status === 403) {
+          setIsAdmin(false);
+          setAdminUsers([]);
+          return;
+        }
+
+        setIsAdmin(false);
+        setAdminUsers([]);
+      } finally {
+        if (isMounted) {
+          setIsAdminLoading(false);
+        }
+      }
+    };
+
+    void loadAdminUsers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authSession, isAuthLoading, isGuestMode]);
 
   const activeClass = useMemo(
     () => data.classes.find((classRoom) => classRoom.id === data.activeClassId) ?? null,
@@ -419,6 +472,29 @@ const App = () => {
       </header>
 
       {errorMessage && <p className="message error">{errorMessage}</p>}
+
+      {isAdmin && (
+        <section className="panel admin-panel">
+          <h2>Admin: registrerade konton</h2>
+          <p className="muted">
+            {isAdminLoading
+              ? "Laddar konton..."
+              : `${adminUsers.length} konto${adminUsers.length === 1 ? "" : "n"} hittade.`}
+          </p>
+          {!isAdminLoading && (
+            <ul className="admin-user-list">
+              {adminUsers.map((user) => (
+                <li key={user.id}>
+                  <span>{user.email}</span>
+                  <span className="muted">
+                    {user.createdAt ? new Date(user.createdAt).toLocaleString("sv-SE") : "Okänd tid"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <div className="app-shell">
         <aside className="panel sidebar">

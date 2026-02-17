@@ -65,3 +65,21 @@ export const verifyAccessToken = async (token) => {
     email
   };
 };
+
+const parseAdminEmails = () => {
+  const raw = process.env.ADMIN_EMAILS || "";
+  return raw
+    .split(",")
+    .map((value) => normalizeEmail(value))
+    .filter(Boolean);
+};
+
+export const isAdminEmail = (email) => {
+  const normalized = normalizeEmail(email);
+  if (!normalized) {
+    return false;
+  }
+
+  const adminEmails = parseAdminEmails();
+  return adminEmails.includes(normalized);
+};

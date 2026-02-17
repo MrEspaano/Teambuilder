@@ -52,6 +52,7 @@ Detta skapar automatiskt Postgres-miljövariabler i projektet.
 I `Project -> Settings -> Environment Variables`:
 
 - `AUTH_JWT_SECRET` = lång slumpad sträng (minst 32 tecken)
+- `ADMIN_EMAILS` = kommaseparerad lista med admin-konton (t.ex. `admin@skola.se,rektor@skola.se`)
 
 Lägg den för `Production`, `Preview`, `Development`.
 
