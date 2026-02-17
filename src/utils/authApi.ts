@@ -9,6 +9,16 @@ export interface AuthSession {
   email: string;
 }
 
+export class AuthApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "AuthApiError";
+    this.status = status;
+  }
+}
+
 interface SupabaseAuthResponse {
   access_token?: string;
   refresh_token?: string;
@@ -17,6 +27,8 @@ interface SupabaseAuthResponse {
     email?: string;
   };
   error_description?: string;
+  message?: string;
+  error?: string;
   msg?: string;
 }
 
@@ -53,7 +65,7 @@ const parseJson = async <T>(response: Response): Promise<T> => {
 };
 
 const resolveErrorMessage = (payload: SupabaseAuthResponse): string =>
-  payload.error_description || payload.msg || "Ett okänt fel inträffade.";
+  payload.error_description || payload.message || payload.error || payload.msg || "Ett okänt fel inträffade.";
 
 export const loadStoredSession = (): AuthSession | null => {
   if (typeof localStorage === "undefined") {
@@ -102,10 +114,20 @@ export const signupWithEmail = async (email: string, password: string): Promise<
 
   const payload = await parseJson<SupabaseAuthResponse>(response);
   if (!response.ok) {
-    throw new Error(resolveErrorMessage(payload));
+    throw new AuthApiError(resolveErrorMessage(payload), response.status);
   }
 
-  return mapAuthResponse(payload);
+  const immediateSession = mapAuthResponse(payload);
+  if (immediateSession) {
+    return immediateSession;
+  }
+
+  try {
+    return await loginWithEmail(email, password);
+  } catch {
+    // If email confirmation is enforced, login can fail even though account exists.
+    return null;
+  }
 };
 
 export const loginWithEmail = async (email: string, password: string): Promise<AuthSession> => {
@@ -117,12 +139,32 @@ export const loginWithEmail = async (email: string, password: string): Promise<A
 
   const payload = await parseJson<SupabaseAuthResponse>(response);
   if (!response.ok) {
-    throw new Error(resolveErrorMessage(payload));
+    throw new AuthApiError(resolveErrorMessage(payload), response.status);
   }
 
   const session = mapAuthResponse(payload);
   if (!session) {
     throw new Error("Inloggning lyckades inte. Kontrollera dina uppgifter.");
+  }
+
+  return session;
+};
+
+export const refreshSession = async (refreshToken: string): Promise<AuthSession> => {
+  const response = await fetch(`${supabaseConfig.url}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ refresh_token: refreshToken })
+  });
+
+  const payload = await parseJson<SupabaseAuthResponse>(response);
+  if (!response.ok) {
+    throw new AuthApiError(resolveErrorMessage(payload), response.status);
+  }
+
+  const session = mapAuthResponse(payload);
+  if (!session) {
+    throw new AuthApiError("Kunde inte förnya sessionen.", response.status);
   }
 
   return session;

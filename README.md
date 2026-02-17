@@ -3,13 +3,14 @@
 En webapp för idrottslärare där du kan:
 - skapa klasser
 - lägga in och redigera elevlistor
+- sätta nivå (1-3) och kön (tjej/kille/okänd) per elev
 - lägga till blockeringspar (elever som inte får vara i samma lag)
 - generera slumpade och jämnt fördelade lag
 - kopiera/exportera resultat
 - skapa konto och logga in med e-post/lösenord så varje användare får sina egna sparade klasser
 
-All data sparas lokalt i webbläsaren via `localStorage` (ingen backend).
-Om Supabase är konfigurerat sparas data i användarens konto i databasen.
+All data sparas lokalt i webbläsaren via `localStorage` när Supabase inte är konfigurerat.
+När Supabase är konfigurerat används konto-inloggning och data sparas per användare i databasen.
 
 ## Teknik
 
@@ -43,9 +44,22 @@ VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 ```
 
 4. I Supabase: `Authentication -> Providers -> Email`
+   - **Enable email signups**: på
    - stäng av **Confirm email**.
 
 När **Confirm email** är av stängd räcker det att ange e-post + lösenord för att konto ska skapas direkt utan verifieringsmail.
+
+### Vercel-inställningar för konton
+
+I Vercel-projektet måste samma variabler finnas under **Settings -> Environment Variables**:
+
+```bash
+VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+```
+
+Lägg dem för **Production**, **Preview** och **Development** och kör sedan en ny deploy.
+Om dessa saknas kör appen enbart lokal lagring och visar inte inloggningspanelen.
 
 ## Bygg för produktion
 
@@ -100,7 +114,11 @@ Notera:
 type Class = {
   id: string;
   name: string;
-  students: string[];
+  students: Array<{
+    name: string;
+    level: 1 | 2 | 3;
+    gender: "tjej" | "kille" | "okänd";
+  }>;
   blocks: Array<{ a: string; b: string }>;
 };
 ```
@@ -113,6 +131,8 @@ Persistenslagret har versionsfält (`version`) för att kunna migrera senare.
 - Varje försök:
   - slumpa elevordning
   - placera elever i lag med jämn målstorlek
+  - balansera nivåsumma mellan lag
+  - balansera könsfördelning mellan lag
   - kontrollera blockeringar under placering
 - Vid lyckat försök returneras lag
 - Om inget försök lyckas: tydligt fel + föreslagen åtgärd

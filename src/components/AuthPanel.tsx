@@ -44,7 +44,7 @@ const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister }: 
 
       <main className="panel auth-panel">
         <h2>{mode === "login" ? "Logga in" : "Skapa konto"}</h2>
-        <p className="muted">E-post och lösenord räcker för konto. Ingen mailverifiering behövs om Supabase är rätt inställt.</p>
+        <p className="muted">E-post och lösenord räcker för konto. Dina klasser sparas i ditt konto och följer med mellan enheter.</p>
 
         <div className="input-row">
           <input
