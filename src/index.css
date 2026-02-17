@@ -113,10 +113,12 @@ body {
 }
 
 .auth-panel {
-  max-width: 620px;
+  max-width: 760px;
   margin: 0;
   position: relative;
   z-index: 2;
+  justify-self: center;
+  width: 100%;
 }
 
 .panel h2 {
@@ -266,21 +268,29 @@ button.danger:hover:not(:disabled) {
 .auth-layout {
   margin-top: 0.6rem;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(330px, 620px);
-  gap: clamp(1rem, 2.2vw, 1.5rem);
-  align-items: start;
+  grid-template-columns: 1fr;
+  gap: clamp(0.8rem, 1.8vw, 1.2rem);
+  align-items: center;
   position: relative;
   overflow: hidden;
+  max-width: 1040px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .auth-hero {
   position: relative;
   z-index: 2;
-  padding: clamp(0.25rem, 1vw, 0.5rem);
+  padding: clamp(0.25rem, 1vw, 0.5rem) clamp(0.2rem, 1vw, 0.4rem);
+  text-align: center;
 }
 
 .page-header-auth {
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.8rem;
+}
+
+.page-header-auth .brand-header {
+  justify-content: center;
 }
 
 .auth-kicker {
@@ -296,6 +306,9 @@ button.danger:hover:not(:disabled) {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.62rem;
+  max-width: 980px;
+  margin: 0 auto;
+  text-align: left;
 }
 
 .auth-feature {

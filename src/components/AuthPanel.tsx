@@ -47,7 +47,7 @@ const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister, on
               <span className="app-logo" aria-hidden="true">
                 TB
               </span>
-              <h1>Lagbyggare för idrott</h1>
+              <h1>TeamBuilder</h1>
             </div>
             <p className="auth-kicker">Hej och välkommen till TeamBuilder!</p>
             <p>
