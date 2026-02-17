@@ -238,6 +238,7 @@ button.danger:hover:not(:disabled) {
 
 .student-row input {
   flex: 1.8 1 220px;
+  min-width: 120px;
 }
 
 .student-row select {
@@ -348,5 +349,17 @@ button.danger:hover:not(:disabled) {
 
   .sidebar {
     order: -1;
+  }
+
+  .student-row {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .student-row input,
+  .student-row select,
+  .student-row button {
+    flex: 1 1 100%;
+    width: 100%;
   }
 }
