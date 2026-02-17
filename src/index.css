@@ -79,6 +79,11 @@ body {
   animation: rise-in 0.35s ease both;
 }
 
+.auth-panel {
+  max-width: 560px;
+  margin: 1.2rem auto 0;
+}
+
 .panel h2 {
   margin: 0 0 0.4rem;
   font-size: 1.15rem;

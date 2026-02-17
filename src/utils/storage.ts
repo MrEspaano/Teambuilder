@@ -58,7 +58,7 @@ export const createEmptyData = (): AppData => ({
   classes: []
 });
 
-const migrateToV1 = (raw: unknown): AppData => {
+export const sanitizeAppData = (raw: unknown): AppData => {
   if (!raw || typeof raw !== "object") {
     return createEmptyData();
   }
@@ -89,7 +89,7 @@ export const loadAppData = (): AppData => {
 
   try {
     const parsed = JSON.parse(rawValue) as unknown;
-    return migrateToV1(parsed);
+    return sanitizeAppData(parsed);
   } catch {
     return createEmptyData();
   }

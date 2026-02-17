@@ -6,8 +6,10 @@ En webapp för idrottslärare där du kan:
 - lägga till blockeringspar (elever som inte får vara i samma lag)
 - generera slumpade och jämnt fördelade lag
 - kopiera/exportera resultat
+- skapa konto och logga in med e-post/lösenord så varje användare får sina egna sparade klasser
 
 All data sparas lokalt i webbläsaren via `localStorage` (ingen backend).
+Om Supabase är konfigurerat sparas data i användarens konto i databasen.
 
 ## Teknik
 
@@ -26,6 +28,24 @@ npm run dev
 ```
 
 Öppna adressen som Vite skriver ut, vanligtvis `http://localhost:5173`.
+
+## Konton och inloggning (Supabase)
+
+För att flera kollegor ska kunna använda appen med egna data:
+
+1. Skapa ett Supabase-projekt.
+2. Kör SQL från `supabase-schema.sql` i Supabase SQL Editor.
+3. Skapa `.env` i projektet med:
+
+```bash
+VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+```
+
+4. I Supabase: `Authentication -> Providers -> Email`
+   - stäng av **Confirm email**.
+
+När **Confirm email** är av stängd räcker det att ange e-post + lösenord för att konto ska skapas direkt utan verifieringsmail.
 
 ## Bygg för produktion
 
