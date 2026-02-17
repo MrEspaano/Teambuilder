@@ -303,7 +303,10 @@ button.danger:hover:not(:disabled) {
 }
 
 .auth-feature-grid {
-  display: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.6rem;
 }
 
 .auth-feature {
