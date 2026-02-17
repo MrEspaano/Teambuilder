@@ -210,9 +210,6 @@ const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
       <div className="editor-step">
         <h3>Steg 2: Sätt nivå, kön och närvaro i listan</h3>
         <p className="muted">
-          Nya elever får automatiskt nivå 2, kön Okänd och markeras som närvarande.
-        </p>
-        <p className="muted">
           Antal elever: {classData.students.length} • Närvarande: {studentStats.present} • Frånvarande:{" "}
           {studentStats.absent} • Tjejer: {studentStats.tjej} • Killar: {studentStats.kille} • Okänd: {studentStats.okänd}
         </p>

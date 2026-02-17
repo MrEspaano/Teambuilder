@@ -53,6 +53,30 @@ body {
   animation: fade-in 0.45s ease;
 }
 
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+}
+
+.app-logo {
+  width: clamp(2.4rem, 4vw, 2.9rem);
+  height: clamp(2.4rem, 4vw, 2.9rem);
+  border-radius: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(0.92rem, 1.3vw, 1.1rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #f5fffd;
+  background:
+    linear-gradient(145deg, rgba(16, 144, 130, 0.95), rgba(8, 102, 93, 0.97)),
+    linear-gradient(220deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0));
+  border: 1px solid rgba(7, 97, 88, 0.5);
+  box-shadow: 0 10px 24px -14px rgba(8, 92, 85, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
 .page-header h1 {
   margin: 0;
   font-size: clamp(2rem, 3.8vw, 3rem);
@@ -400,6 +424,10 @@ button.danger:hover:not(:disabled) {
 @media (max-width: 920px) {
   .app-shell {
     grid-template-columns: 1fr;
+  }
+
+  .brand-header {
+    gap: 0.6rem;
   }
 
   .sidebar {

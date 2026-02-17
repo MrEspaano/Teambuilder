@@ -39,7 +39,12 @@ const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister, on
   return (
     <div className="page">
       <header className="page-header">
-        <h1>Lagbyggare för idrott</h1>
+        <div className="brand-header">
+          <span className="app-logo" aria-hidden="true">
+            TB
+          </span>
+          <h1>Lagbyggare för idrott</h1>
+        </div>
         <p>Logga in för att komma åt dina egna klasser och dela appen med kollegor.</p>
       </header>
 

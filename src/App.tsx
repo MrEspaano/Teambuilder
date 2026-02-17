@@ -398,7 +398,12 @@ const App = () => {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>Lagbyggare för idrott</h1>
+        <div className="brand-header">
+          <span className="app-logo" aria-hidden="true">
+            TB
+          </span>
+          <h1>Lagbyggare för idrott</h1>
+        </div>
         <p>
           Skapa klasser, hantera elevlistor och generera slumpade lag med blockeringar.
           {isGuestMode ? " Gästläge." : ` Inloggad som ${authSession?.email}.`}
