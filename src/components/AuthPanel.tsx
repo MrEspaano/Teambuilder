@@ -38,7 +38,7 @@ const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister, on
   };
 
   return (
-    <div className="page">
+    <div className="page auth-page">
       <div className="auth-layout">
         <span className="auth-orb auth-orb-a" aria-hidden="true" />
         <span className="auth-orb auth-orb-b" aria-hidden="true" />
@@ -57,27 +57,8 @@ const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister, on
             </p>
           </header>
 
-          <div className="auth-feature-grid">
-            <article className="auth-feature">
-              <h3>Snabb start</h3>
-              <p>Lägg till elever i två tydliga steg och börja generera lag direkt.</p>
-            </article>
-            <article className="auth-feature">
-              <h3>Smart fördelning</h3>
-              <p>Fördela nivåer jämnare och styr med spärrregler för samma/olika lag.</p>
-            </article>
-            <article className="auth-feature">
-              <h3>Fungerar överallt</h3>
-              <p>Logga in för att nå dina klasser på flera enheter, eller testa som gäst.</p>
-            </article>
-          </div>
-
-          <section className="auth-preview" aria-label="Förhandsvisning av appen">
-            <div className="auth-preview-header">
-              <h3>Förhandsvisning</h3>
-              <p>Så här ser TeamBuilder ut efter inloggning.</p>
-            </div>
-            {!previewFailed ? (
+          {!previewFailed && (
+            <section className="auth-preview" aria-label="Förhandsvisning av appen">
               <img
                 className="auth-preview-image"
                 src="/auth-preview.png"
@@ -85,12 +66,8 @@ const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister, on
                 loading="lazy"
                 onError={() => setPreviewFailed(true)}
               />
-            ) : (
-              <p className="muted">
-                Kunde inte ladda förhandsbilden. Lägg bilden i <code>public/auth-preview.png</code>.
-              </p>
-            )}
-          </section>
+            </section>
+          )}
         </section>
 
         <main className="panel auth-panel">
