@@ -14,6 +14,7 @@ const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister, on
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
 
   const handleSubmit = async () => {
     const trimmedEmail = email.trim();
@@ -70,6 +71,26 @@ const AuthPanel = ({ loading, errorMessage, infoMessage, onLogin, onRegister, on
               <p>Logga in för att nå dina klasser på flera enheter, eller testa som gäst.</p>
             </article>
           </div>
+
+          <section className="auth-preview" aria-label="Förhandsvisning av appen">
+            <div className="auth-preview-header">
+              <h3>Förhandsvisning</h3>
+              <p>Så här ser TeamBuilder ut efter inloggning.</p>
+            </div>
+            {!previewFailed ? (
+              <img
+                className="auth-preview-image"
+                src="/auth-preview.png"
+                alt="Förhandsvisning av klasshantering och elevlista i TeamBuilder"
+                loading="lazy"
+                onError={() => setPreviewFailed(true)}
+              />
+            ) : (
+              <p className="muted">
+                Kunde inte ladda förhandsbilden. Lägg bilden i <code>public/auth-preview.png</code>.
+              </p>
+            )}
+          </section>
         </section>
 
         <main className="panel auth-panel">
