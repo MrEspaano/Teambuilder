@@ -380,6 +380,162 @@ const isBetterQuality = (candidate: TeamQuality, best: TeamQuality): boolean => 
   return false;
 };
 
+const buildTeamStateFromGroupIds = (groupIds: string[], groupById: Map<string, StudentGroup>): TeamState => {
+  const team: TeamState = {
+    members: [],
+    keys: [],
+    groupIds: [...groupIds],
+    skillSum: 0,
+    girls: 0,
+    boys: 0,
+    levelCounts: { 1: 0, 2: 0, 3: 0 }
+  };
+
+  for (const groupId of groupIds) {
+    const group = groupById.get(groupId);
+    if (!group) {
+      continue;
+    }
+
+    team.keys.push(...group.keys);
+    team.members.push(
+      ...group.members.map((member) => ({
+        name: member.name,
+        level: member.level,
+        gender: member.gender,
+        present: true
+      }))
+    );
+    team.skillSum += group.skillSum;
+    team.girls += group.girls;
+    team.boys += group.boys;
+    team.levelCounts[1] += group.levelCounts[1];
+    team.levelCounts[2] += group.levelCounts[2];
+    team.levelCounts[3] += group.levelCounts[3];
+  }
+
+  return team;
+};
+
+const optimizeTeamsByLocalSearch = (
+  initialTeams: TeamState[],
+  groupById: Map<string, StudentGroup>,
+  targetSizes: number[],
+  groupAdjacency: Map<string, Set<string>>,
+  idealSkill: number,
+  targetGirls: number[],
+  targetBoys: number[],
+  levelTargets: LevelTargets,
+  maxIterations = 120
+): TeamState[] => {
+  let currentTeams = initialTeams.map((team) => ({ ...team, groupIds: [...team.groupIds], keys: [...team.keys], members: [...team.members] }));
+  let currentQuality = evaluateTeams(currentTeams, idealSkill, targetGirls, targetBoys, levelTargets);
+
+  for (let iteration = 0; iteration < maxIterations; iteration += 1) {
+    let bestNeighborTeams: TeamState[] | null = null;
+    let bestNeighborQuality: TeamQuality | null = null;
+
+    for (let fromIndex = 0; fromIndex < currentTeams.length; fromIndex += 1) {
+      const fromTeam = currentTeams[fromIndex];
+      if (!fromTeam) {
+        continue;
+      }
+
+      for (const movingGroupId of fromTeam.groupIds) {
+        const movingGroup = groupById.get(movingGroupId);
+        if (!movingGroup) {
+          continue;
+        }
+
+        for (let toIndex = 0; toIndex < currentTeams.length; toIndex += 1) {
+          if (toIndex === fromIndex) {
+            continue;
+          }
+
+          const toTeam = currentTeams[toIndex];
+          const toTargetSize = targetSizes[toIndex] ?? 0;
+          if (!toTeam || toTeam.members.length + movingGroup.size > toTargetSize) {
+            continue;
+          }
+
+          if (hasGroupConflict(movingGroupId, toTeam.groupIds, groupAdjacency)) {
+            continue;
+          }
+
+          const candidateGroupIds = currentTeams.map((team) => [...team.groupIds]);
+          candidateGroupIds[fromIndex] = candidateGroupIds[fromIndex]?.filter((id) => id !== movingGroupId) ?? [];
+          candidateGroupIds[toIndex] = [...(candidateGroupIds[toIndex] ?? []), movingGroupId];
+
+          const candidateTeams = candidateGroupIds.map((groupIds) => buildTeamStateFromGroupIds(groupIds, groupById));
+          const candidateQuality = evaluateTeams(candidateTeams, idealSkill, targetGirls, targetBoys, levelTargets);
+          if (
+            !bestNeighborQuality ||
+            isBetterQuality(candidateQuality, bestNeighborQuality)
+          ) {
+            bestNeighborTeams = candidateTeams;
+            bestNeighborQuality = candidateQuality;
+          }
+        }
+
+        for (let otherIndex = fromIndex + 1; otherIndex < currentTeams.length; otherIndex += 1) {
+          const otherTeam = currentTeams[otherIndex];
+          if (!otherTeam) {
+            continue;
+          }
+
+          for (const swapGroupId of otherTeam.groupIds) {
+            const swapGroup = groupById.get(swapGroupId);
+            if (!swapGroup) {
+              continue;
+            }
+
+            const fromTargetSize = targetSizes[fromIndex] ?? 0;
+            const otherTargetSize = targetSizes[otherIndex] ?? 0;
+            const projectedFromSize = fromTeam.members.length - movingGroup.size + swapGroup.size;
+            const projectedOtherSize = otherTeam.members.length - swapGroup.size + movingGroup.size;
+            if (projectedFromSize > fromTargetSize || projectedOtherSize > otherTargetSize) {
+              continue;
+            }
+
+            const fromWithout = fromTeam.groupIds.filter((id) => id !== movingGroupId);
+            const otherWithout = otherTeam.groupIds.filter((id) => id !== swapGroupId);
+
+            if (hasGroupConflict(swapGroupId, fromWithout, groupAdjacency)) {
+              continue;
+            }
+            if (hasGroupConflict(movingGroupId, otherWithout, groupAdjacency)) {
+              continue;
+            }
+
+            const candidateGroupIds = currentTeams.map((team) => [...team.groupIds]);
+            candidateGroupIds[fromIndex] = [...fromWithout, swapGroupId];
+            candidateGroupIds[otherIndex] = [...otherWithout, movingGroupId];
+
+            const candidateTeams = candidateGroupIds.map((groupIds) => buildTeamStateFromGroupIds(groupIds, groupById));
+            const candidateQuality = evaluateTeams(candidateTeams, idealSkill, targetGirls, targetBoys, levelTargets);
+            if (
+              !bestNeighborQuality ||
+              isBetterQuality(candidateQuality, bestNeighborQuality)
+            ) {
+              bestNeighborTeams = candidateTeams;
+              bestNeighborQuality = candidateQuality;
+            }
+          }
+        }
+      }
+    }
+
+    if (!bestNeighborTeams || !bestNeighborQuality || !isBetterQuality(bestNeighborQuality, currentQuality)) {
+      break;
+    }
+
+    currentTeams = bestNeighborTeams;
+    currentQuality = bestNeighborQuality;
+  }
+
+  return currentTeams;
+};
+
 const pickTeamIndex = (
   group: StudentGroup,
   teams: TeamState[],
@@ -562,6 +718,7 @@ export const generateTeams = (
     ...group,
     degree: groupAdjacency.get(group.id)?.size ?? 0
   }));
+  const groupById = new Map(groupsWithDegree.map((group) => [group.id, group] as const));
 
   const totalSkill = normalizedPresent.reduce((sum, student) => sum + student.level, 0);
   const idealSkill = totalSkill / teamCount;
@@ -657,10 +814,20 @@ export const generateTeams = (
       continue;
     }
 
-    const quality = evaluateTeams(teams, idealSkill, targetGirls, targetBoys, levelTargets);
+    const optimizedTeams = optimizeTeamsByLocalSearch(
+      teams,
+      groupById,
+      targetSizes,
+      groupAdjacency,
+      idealSkill,
+      targetGirls,
+      targetBoys,
+      levelTargets
+    );
+    const quality = evaluateTeams(optimizedTeams, idealSkill, targetGirls, targetBoys, levelTargets);
     if (!bestQuality || !bestTeams || isBetterQuality(quality, bestQuality)) {
       bestQuality = quality;
-      bestTeams = teams.map((team) => team.members);
+      bestTeams = optimizedTeams.map((team) => team.members);
       bestAttempt = attempt;
     }
 
