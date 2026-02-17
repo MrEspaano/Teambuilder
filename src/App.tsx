@@ -25,6 +25,7 @@ import { createClassRoom, createEmptyData, loadAppData, saveAppData } from "./ut
 const GUEST_MODE_KEY = "lagbyggare:guest-mode";
 
 const App = () => {
+  const [activeView, setActiveView] = useState<"main" | "admin">("main");
   const [data, setData] = useState<AppData>(createEmptyData());
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
@@ -209,6 +210,7 @@ const App = () => {
       setIsAdmin(false);
       setAdminUsers([]);
       setIsAdminLoading(false);
+      setActiveView("main");
       return;
     }
 
@@ -250,6 +252,12 @@ const App = () => {
       isMounted = false;
     };
   }, [authSession, isAuthLoading, isGuestMode]);
+
+  useEffect(() => {
+    if (!isAdmin && activeView === "admin") {
+      setActiveView("main");
+    }
+  }, [activeView, isAdmin]);
 
   const activeClass = useMemo(
     () => data.classes.find((classRoom) => classRoom.id === data.activeClassId) ?? null,
@@ -462,6 +470,15 @@ const App = () => {
           {isGuestMode ? " Gästläge." : ` Inloggad som ${authSession?.email}.`}
         </p>
         <div className="button-row">
+          {isAdmin && (
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setActiveView((current) => (current === "admin" ? "main" : "admin"))}
+            >
+              {activeView === "admin" ? "Tillbaka" : "Admin"}
+            </button>
+          )}
           <button type="button" className="ghost" onClick={logout}>
             {isGuestMode ? "Avsluta gästläge" : "Logga ut"}
           </button>
@@ -473,7 +490,7 @@ const App = () => {
 
       {errorMessage && <p className="message error">{errorMessage}</p>}
 
-      {isAdmin && (
+      {isAdmin && activeView === "admin" && (
         <section className="panel admin-panel">
           <h2>Admin: registrerade konton</h2>
           <p className="muted">
@@ -496,34 +513,36 @@ const App = () => {
         </section>
       )}
 
-      <div className="app-shell">
-        <aside className="panel sidebar">
-          <ClassSelector
-            classes={data.classes}
-            activeClassId={data.activeClassId}
-            onSelect={(classId) => setData((prev) => ({ ...prev, activeClassId: classId }))}
-            onCreate={createClass}
-            onRename={renameClass}
-            onDelete={deleteClass}
-          />
-        </aside>
-
-        <main className="main-stack">
-          <div className="panel">
-            <StudentEditor classData={activeClass} onStudentsChange={updateStudents} />
-          </div>
-          <div className="panel">
-            <BlockRulesEditor
-              classData={activeClass}
-              onBlocksChange={updateBlocks}
-              onTogetherRulesChange={updateTogetherRules}
+      {activeView === "main" && (
+        <div className="app-shell">
+          <aside className="panel sidebar">
+            <ClassSelector
+              classes={data.classes}
+              activeClassId={data.activeClassId}
+              onSelect={(classId) => setData((prev) => ({ ...prev, activeClassId: classId }))}
+              onCreate={createClass}
+              onRename={renameClass}
+              onDelete={deleteClass}
             />
-          </div>
-          <div className="panel">
-            <TeamGenerator classData={activeClass} />
-          </div>
-        </main>
-      </div>
+          </aside>
+
+          <main className="main-stack">
+            <div className="panel">
+              <StudentEditor classData={activeClass} onStudentsChange={updateStudents} />
+            </div>
+            <div className="panel">
+              <BlockRulesEditor
+                classData={activeClass}
+                onBlocksChange={updateBlocks}
+                onTogetherRulesChange={updateTogetherRules}
+              />
+            </div>
+            <div className="panel">
+              <TeamGenerator classData={activeClass} />
+            </div>
+          </main>
+        </div>
+      )}
     </div>
   );
 };
