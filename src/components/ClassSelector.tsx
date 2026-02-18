@@ -13,6 +13,7 @@ interface ClassSelectorProps {
 const ClassSelector = ({ classes, activeClassId, onSelect, onCreate, onRename, onDelete }: ClassSelectorProps) => {
   const [newClassName, setNewClassName] = useState("");
   const [renameValue, setRenameValue] = useState("");
+  const [isExpanded, setIsExpanded] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const activeClass = useMemo(
@@ -57,56 +58,77 @@ const ClassSelector = ({ classes, activeClassId, onSelect, onCreate, onRename, o
 
   return (
     <section>
-      <h2>Klasshantering</h2>
-      <p className="muted">Skapa klasser och välj vilken klass som är aktiv.</p>
-
-      <div className="input-row">
-        <input
-          aria-label="Nytt klassnamn"
-          placeholder="t.ex. 7A"
-          value={newClassName}
-          onChange={(event) => setNewClassName(event.target.value)}
-          maxLength={40}
-        />
-        <button type="button" onClick={handleCreate}>
-          Lägg till klass
+      <div className="section-header-row">
+        <h2>Klasshantering</h2>
+        <button
+          type="button"
+          className="ghost section-toggle-button"
+          onClick={() => setIsExpanded((current) => !current)}
+          aria-expanded={isExpanded}
+        >
+          {isExpanded ? "Förminska" : "Förstora"}
         </button>
       </div>
+      <p className="muted">Skapa klasser och välj vilken klass som är aktiv.</p>
 
-      {errorMessage && <p className="message error">{errorMessage}</p>}
-
-      {classes.length === 0 && <p className="empty-state">Inga klasser ännu.</p>}
-
-      {classes.length > 0 && (
-        <ul className="class-list">
-          {classes.map((classRoom) => (
-            <li key={classRoom.id} className={classRoom.id === activeClassId ? "active" : ""}>
-              <button type="button" className="class-select" onClick={() => onSelect(classRoom.id)}>
-                {classRoom.name}
-              </button>
-              <button type="button" className="danger ghost" onClick={() => handleDelete(classRoom)}>
-                Ta bort
-              </button>
-            </li>
-          ))}
-        </ul>
+      {!isExpanded && (
+        <p className="empty-state">
+          Aktiv klass: {activeClass?.name ?? "Ingen vald"} • Antal klasser: {classes.length}. Klicka på "Förstora" för
+          att ändra klasshantering.
+        </p>
       )}
 
-      {activeClass && (
-        <div className="rename-box">
-          <label htmlFor="rename-class">Byt namn på aktiv klass</label>
+      {isExpanded && (
+        <>
           <div className="input-row">
             <input
-              id="rename-class"
-              value={renameValue}
-              onChange={(event) => setRenameValue(event.target.value)}
+              aria-label="Nytt klassnamn"
+              placeholder="t.ex. 7A"
+              value={newClassName}
+              onChange={(event) => setNewClassName(event.target.value)}
               maxLength={40}
             />
-            <button type="button" onClick={handleRename}>
-              Spara namn
+            <button type="button" onClick={handleCreate}>
+              Lägg till klass
             </button>
           </div>
-        </div>
+
+          {errorMessage && <p className="message error">{errorMessage}</p>}
+
+          {classes.length === 0 && <p className="empty-state">Inga klasser ännu.</p>}
+
+          {classes.length > 0 && (
+            <ul className="class-list">
+              {classes.map((classRoom) => (
+                <li key={classRoom.id} className={classRoom.id === activeClassId ? "active" : ""}>
+                  <button type="button" className="class-select" onClick={() => onSelect(classRoom.id)}>
+                    {classRoom.name}
+                  </button>
+                  <button type="button" className="danger ghost" onClick={() => handleDelete(classRoom)}>
+                    Ta bort
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {activeClass && (
+            <div className="rename-box">
+              <label htmlFor="rename-class">Byt namn på aktiv klass</label>
+              <div className="input-row">
+                <input
+                  id="rename-class"
+                  value={renameValue}
+                  onChange={(event) => setRenameValue(event.target.value)}
+                  maxLength={40}
+                />
+                <button type="button" onClick={handleRename}>
+                  Spara namn
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

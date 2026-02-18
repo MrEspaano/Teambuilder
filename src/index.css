@@ -425,7 +425,7 @@ button.danger:hover:not(:disabled) {
   border-top: 1px dashed rgba(142, 176, 196, 0.9);
 }
 
-.step-header-row {
+.section-header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -433,9 +433,10 @@ button.danger:hover:not(:disabled) {
   flex-wrap: wrap;
 }
 
-.step-toggle-button {
+.section-toggle-button {
   padding: 0.46rem 0.85rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .student-row input[type="text"] {
@@ -666,7 +667,7 @@ button.danger:hover:not(:disabled) {
     width: 100%;
   }
 
-  .step-header-row {
+  .section-header-row {
     align-items: flex-start;
   }
 }

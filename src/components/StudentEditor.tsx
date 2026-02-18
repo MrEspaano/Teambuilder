@@ -181,7 +181,17 @@ const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
 
   return (
     <section>
-      <h2>Elever i {classData.name}</h2>
+      <div className="section-header-row">
+        <h2>Elever i {classData.name}</h2>
+        <button
+          type="button"
+          className="ghost section-toggle-button"
+          onClick={() => setIsStepTwoExpanded((current) => !current)}
+          aria-expanded={isStepTwoExpanded}
+        >
+          {isStepTwoExpanded ? "Förminska detaljer" : "Förstora detaljer"}
+        </button>
+      </div>
       <p className="muted">Arbeta i två steg: 1) Lägg till namn, 2) Välj nivå och kön i listan.</p>
 
       {message && <p className={`message ${message.type}`}>{message.text}</p>}
@@ -210,17 +220,7 @@ const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
       </div>
 
       <div className="editor-step">
-        <div className="step-header-row">
-          <h3>Steg 2: Sätt nivå, kön och närvaro i listan</h3>
-          <button
-            type="button"
-            className="ghost step-toggle-button"
-            onClick={() => setIsStepTwoExpanded((current) => !current)}
-            aria-expanded={isStepTwoExpanded}
-          >
-            {isStepTwoExpanded ? "Förminska" : "Förstora"}
-          </button>
-        </div>
+        <h3>Steg 2: Sätt nivå, kön och närvaro i listan</h3>
         <p className="muted">
           Antal elever: {classData.students.length} • Närvarande: {studentStats.present} • Frånvarande:{" "}
           {studentStats.absent} • Tjejer: {studentStats.tjej} • Killar: {studentStats.kille} • Okänd: {studentStats.okänd}

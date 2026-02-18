@@ -51,6 +51,7 @@ const BlockRulesEditor = ({ classData, onBlocksChange, onTogetherRulesChange }: 
   const [blockB, setBlockB] = useState("");
   const [togetherA, setTogetherA] = useState("");
   const [togetherB, setTogetherB] = useState("");
+  const [isExpanded, setIsExpanded] = useState(true);
   const [message, setMessage] = useState<Message | null>(null);
 
   const students = classData?.students.map((student) => student.name) ?? [];
@@ -195,128 +196,149 @@ const BlockRulesEditor = ({ classData, onBlocksChange, onTogetherRulesChange }: 
 
   return (
     <section>
-      <h2>Regler i {classData.name}</h2>
+      <div className="section-header-row">
+        <h2>Regler i {classData.name}</h2>
+        <button
+          type="button"
+          className="ghost section-toggle-button"
+          onClick={() => setIsExpanded((current) => !current)}
+          aria-expanded={isExpanded}
+        >
+          {isExpanded ? "Förminska" : "Förstora"}
+        </button>
+      </div>
       <p className="muted">Skapa spärrar för elever som inte får vara i samma lag, eller lås elever som alltid ska vara i samma lag.</p>
 
-      {message && <p className={`message ${message.type}`}>{message.text}</p>}
+      {!isExpanded && (
+        <p className="empty-state">
+          Spärrar: {classData.blocks.length} • Samma-lag-regler: {classData.togetherRules.length}. Klicka på
+          "Förstora" för att redigera regler.
+        </p>
+      )}
 
-      <div className="editor-step">
-        <h3>Spärrar: får inte vara i samma lag</h3>
+      {isExpanded && (
+        <>
+          {message && <p className={`message ${message.type}`}>{message.text}</p>}
 
-        {students.length < 2 ? (
-          <p className="empty-state">Lägg till minst två elever innan du skapar regler.</p>
-        ) : (
-          <div className="input-row">
-            <select value={blockA} onChange={(event) => setBlockA(event.target.value)}>
-              {students.map((student) => (
-                <option key={`block-a-${student}`} value={student}>
-                  {student}
-                </option>
-              ))}
-            </select>
+          <div className="editor-step">
+            <h3>Spärrar: får inte vara i samma lag</h3>
 
-            <select value={blockB} onChange={(event) => setBlockB(event.target.value)}>
-              {students.map((student) => (
-                <option key={`block-b-${student}`} value={student}>
-                  {student}
-                </option>
-              ))}
-            </select>
+            {students.length < 2 ? (
+              <p className="empty-state">Lägg till minst två elever innan du skapar regler.</p>
+            ) : (
+              <div className="input-row">
+                <select value={blockA} onChange={(event) => setBlockA(event.target.value)}>
+                  {students.map((student) => (
+                    <option key={`block-a-${student}`} value={student}>
+                      {student}
+                    </option>
+                  ))}
+                </select>
 
-            <button type="button" onClick={handleAddBlock}>
-              Lägg till spärr
-            </button>
+                <select value={blockB} onChange={(event) => setBlockB(event.target.value)}>
+                  {students.map((student) => (
+                    <option key={`block-b-${student}`} value={student}>
+                      {student}
+                    </option>
+                  ))}
+                </select>
+
+                <button type="button" onClick={handleAddBlock}>
+                  Lägg till spärr
+                </button>
+              </div>
+            )}
+
+            {analyzed.blocks.invalid.length > 0 && (
+              <div className="alert">
+                <p>Det finns {analyzed.blocks.invalid.length} ogiltiga spärrar.</p>
+                <button type="button" className="ghost" onClick={clearInvalidBlocks}>
+                  Rensa ogiltiga spärrar
+                </button>
+              </div>
+            )}
+
+            {classData.blocks.length === 0 && <p className="empty-state">Inga spärrar ännu.</p>}
+
+            {classData.blocks.length > 0 && (
+              <ul className="block-list">
+                {classData.blocks.map((rule, index) => {
+                  const isInvalid = analyzed.blocks.invalid.some((item) => item.index === index);
+                  return (
+                    <li key={`block-${rule.a}-${rule.b}-${index}`} className={isInvalid ? "invalid" : ""}>
+                      <span>
+                        {rule.a} ↔ {rule.b}
+                      </span>
+                      <button type="button" className="danger ghost" onClick={() => handleRemoveBlock(index)}>
+                        Ta bort
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
-        )}
 
-        {analyzed.blocks.invalid.length > 0 && (
-          <div className="alert">
-            <p>Det finns {analyzed.blocks.invalid.length} ogiltiga spärrar.</p>
-            <button type="button" className="ghost" onClick={clearInvalidBlocks}>
-              Rensa ogiltiga spärrar
-            </button>
+          <div className="editor-step">
+            <h3>Samma lag: ska alltid vara i samma lag</h3>
+
+            {students.length < 2 ? (
+              <p className="empty-state">Lägg till minst två elever innan du skapar regler.</p>
+            ) : (
+              <div className="input-row">
+                <select value={togetherA} onChange={(event) => setTogetherA(event.target.value)}>
+                  {students.map((student) => (
+                    <option key={`together-a-${student}`} value={student}>
+                      {student}
+                    </option>
+                  ))}
+                </select>
+
+                <select value={togetherB} onChange={(event) => setTogetherB(event.target.value)}>
+                  {students.map((student) => (
+                    <option key={`together-b-${student}`} value={student}>
+                      {student}
+                    </option>
+                  ))}
+                </select>
+
+                <button type="button" onClick={handleAddTogetherRule}>
+                  Lägg till samma-lag
+                </button>
+              </div>
+            )}
+
+            {analyzed.together.invalid.length > 0 && (
+              <div className="alert">
+                <p>Det finns {analyzed.together.invalid.length} ogiltiga samma-lag-regler.</p>
+                <button type="button" className="ghost" onClick={clearInvalidTogetherRules}>
+                  Rensa ogiltiga regler
+                </button>
+              </div>
+            )}
+
+            {classData.togetherRules.length === 0 && <p className="empty-state">Inga samma-lag-regler ännu.</p>}
+
+            {classData.togetherRules.length > 0 && (
+              <ul className="block-list">
+                {classData.togetherRules.map((rule, index) => {
+                  const isInvalid = analyzed.together.invalid.some((item) => item.index === index);
+                  return (
+                    <li key={`together-${rule.a}-${rule.b}-${index}`} className={isInvalid ? "invalid" : ""}>
+                      <span>
+                        {rule.a} ↔ {rule.b}
+                      </span>
+                      <button type="button" className="danger ghost" onClick={() => handleRemoveTogetherRule(index)}>
+                        Ta bort
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
-        )}
-
-        {classData.blocks.length === 0 && <p className="empty-state">Inga spärrar ännu.</p>}
-
-        {classData.blocks.length > 0 && (
-          <ul className="block-list">
-            {classData.blocks.map((rule, index) => {
-              const isInvalid = analyzed.blocks.invalid.some((item) => item.index === index);
-              return (
-                <li key={`block-${rule.a}-${rule.b}-${index}`} className={isInvalid ? "invalid" : ""}>
-                  <span>
-                    {rule.a} ↔ {rule.b}
-                  </span>
-                  <button type="button" className="danger ghost" onClick={() => handleRemoveBlock(index)}>
-                    Ta bort
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      <div className="editor-step">
-        <h3>Samma lag: ska alltid vara i samma lag</h3>
-
-        {students.length < 2 ? (
-          <p className="empty-state">Lägg till minst två elever innan du skapar regler.</p>
-        ) : (
-          <div className="input-row">
-            <select value={togetherA} onChange={(event) => setTogetherA(event.target.value)}>
-              {students.map((student) => (
-                <option key={`together-a-${student}`} value={student}>
-                  {student}
-                </option>
-              ))}
-            </select>
-
-            <select value={togetherB} onChange={(event) => setTogetherB(event.target.value)}>
-              {students.map((student) => (
-                <option key={`together-b-${student}`} value={student}>
-                  {student}
-                </option>
-              ))}
-            </select>
-
-            <button type="button" onClick={handleAddTogetherRule}>
-              Lägg till samma-lag
-            </button>
-          </div>
-        )}
-
-        {analyzed.together.invalid.length > 0 && (
-          <div className="alert">
-            <p>Det finns {analyzed.together.invalid.length} ogiltiga samma-lag-regler.</p>
-            <button type="button" className="ghost" onClick={clearInvalidTogetherRules}>
-              Rensa ogiltiga regler
-            </button>
-          </div>
-        )}
-
-        {classData.togetherRules.length === 0 && <p className="empty-state">Inga samma-lag-regler ännu.</p>}
-
-        {classData.togetherRules.length > 0 && (
-          <ul className="block-list">
-            {classData.togetherRules.map((rule, index) => {
-              const isInvalid = analyzed.together.invalid.some((item) => item.index === index);
-              return (
-                <li key={`together-${rule.a}-${rule.b}-${index}`} className={isInvalid ? "invalid" : ""}>
-                  <span>
-                    {rule.a} ↔ {rule.b}
-                  </span>
-                  <button type="button" className="danger ghost" onClick={() => handleRemoveTogetherRule(index)}>
-                    Ta bort
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+        </>
+      )}
     </section>
   );
 };
