@@ -25,10 +25,12 @@ const createStudent = (name: string, level: StudentLevel, gender: StudentGender)
 const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
   const [quickName, setQuickName] = useState("");
   const [message, setMessage] = useState<Message | null>(null);
+  const [isStepTwoExpanded, setIsStepTwoExpanded] = useState(true);
 
   useEffect(() => {
     setQuickName("");
     setMessage(null);
+    setIsStepTwoExpanded(true);
   }, [classData?.id, classData?.students]);
 
   const studentStats = useMemo(() => {
@@ -208,57 +210,71 @@ const StudentEditor = ({ classData, onStudentsChange }: StudentEditorProps) => {
       </div>
 
       <div className="editor-step">
-        <h3>Steg 2: Sätt nivå, kön och närvaro i listan</h3>
+        <div className="step-header-row">
+          <h3>Steg 2: Sätt nivå, kön och närvaro i listan</h3>
+          <button
+            type="button"
+            className="ghost step-toggle-button"
+            onClick={() => setIsStepTwoExpanded((current) => !current)}
+            aria-expanded={isStepTwoExpanded}
+          >
+            {isStepTwoExpanded ? "Förminska" : "Förstora"}
+          </button>
+        </div>
         <p className="muted">
           Antal elever: {classData.students.length} • Närvarande: {studentStats.present} • Frånvarande:{" "}
           {studentStats.absent} • Tjejer: {studentStats.tjej} • Killar: {studentStats.kille} • Okänd: {studentStats.okänd}
         </p>
 
-        {classData.students.length > 0 ? (
-          <ul className="student-list">
-            {classData.students.map((student, index) => (
-              <li key={`${student.name}-${index}`} className={`student-row${student.present ? "" : " absent"}`}>
-                <label className="presence-toggle">
+        {isStepTwoExpanded ? (
+          classData.students.length > 0 ? (
+            <ul className="student-list">
+              {classData.students.map((student, index) => (
+                <li key={`${student.name}-${index}`} className={`student-row${student.present ? "" : " absent"}`}>
+                  <label className="presence-toggle">
+                    <input
+                      type="checkbox"
+                      checked={student.present}
+                      onChange={(event) => handleStudentPresenceChange(index, event.target.checked)}
+                      aria-label={`Närvaro för ${student.name}`}
+                    />
+                    Närvarande
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={student.present}
-                    onChange={(event) => handleStudentPresenceChange(index, event.target.checked)}
-                    aria-label={`Närvaro för ${student.name}`}
+                    type="text"
+                    value={student.name}
+                    onChange={(event) => handleStudentNameChange(index, event.target.value)}
+                    aria-label={`Namn för elev ${index + 1}`}
                   />
-                  Närvarande
-                </label>
-                <input
-                  type="text"
-                  value={student.name}
-                  onChange={(event) => handleStudentNameChange(index, event.target.value)}
-                  aria-label={`Namn för elev ${index + 1}`}
-                />
-                <select
-                  value={student.level}
-                  onChange={(event) => handleStudentLevelChange(index, Number(event.target.value) as StudentLevel)}
-                  aria-label={`Nivå för ${student.name}`}
-                >
-                  <option value={1}>Nivå 1</option>
-                  <option value={2}>Nivå 2</option>
-                  <option value={3}>Nivå 3</option>
-                </select>
-                <select
-                  value={student.gender}
-                  onChange={(event) => handleStudentGenderChange(index, event.target.value as StudentGender)}
-                  aria-label={`Kön för ${student.name}`}
-                >
-                  <option value="tjej">Tjej</option>
-                  <option value="kille">Kille</option>
-                  <option value="okänd">Okänd</option>
-                </select>
-                <button type="button" className="danger ghost" onClick={() => handleRemoveStudent(index)}>
-                  Ta bort
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <select
+                    value={student.level}
+                    onChange={(event) => handleStudentLevelChange(index, Number(event.target.value) as StudentLevel)}
+                    aria-label={`Nivå för ${student.name}`}
+                  >
+                    <option value={1}>Nivå 1</option>
+                    <option value={2}>Nivå 2</option>
+                    <option value={3}>Nivå 3</option>
+                  </select>
+                  <select
+                    value={student.gender}
+                    onChange={(event) => handleStudentGenderChange(index, event.target.value as StudentGender)}
+                    aria-label={`Kön för ${student.name}`}
+                  >
+                    <option value="tjej">Tjej</option>
+                    <option value="kille">Kille</option>
+                    <option value="okänd">Okänd</option>
+                  </select>
+                  <button type="button" className="danger ghost" onClick={() => handleRemoveStudent(index)}>
+                    Ta bort
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="empty-state">Lägg till första eleven i steg 1.</p>
+          )
         ) : (
-          <p className="empty-state">Lägg till första eleven i steg 1.</p>
+          <p className="empty-state">Steg 2 är förminskat. Klicka på "Förstora" för att ändra elevernas detaljer.</p>
         )}
       </div>
     </section>

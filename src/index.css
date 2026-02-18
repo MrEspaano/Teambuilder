@@ -425,6 +425,19 @@ button.danger:hover:not(:disabled) {
   border-top: 1px dashed rgba(142, 176, 196, 0.9);
 }
 
+.step-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.step-toggle-button {
+  padding: 0.46rem 0.85rem;
+  font-weight: 700;
+}
+
 .student-row input[type="text"] {
   flex: 1.8 1 220px;
   min-width: 120px;
@@ -651,5 +664,9 @@ button.danger:hover:not(:disabled) {
   .student-row button {
     flex: 1 1 100%;
     width: 100%;
+  }
+
+  .step-header-row {
+    align-items: flex-start;
   }
 }
